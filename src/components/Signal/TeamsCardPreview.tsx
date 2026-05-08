@@ -25,7 +25,7 @@ export default function TeamsCardPreview({ signal = sampleSignal }: TeamsCardPre
   const headline = `${signal.entity.supplier_name} — ${signal.trigger.event_label.toLowerCase()}`;
 
   return (
-    <div className="min-h-screen bg-slate-100 p-6 sm:p-10">
+    <div className="p-6">
       <div className="mx-auto max-w-2xl">
         {/* Demo-only context line so reviewers know what they're looking at. */}
         <p className="text-xs uppercase tracking-wider text-gray-500 mb-3">
@@ -277,7 +277,7 @@ export default function TeamsCardPreview({ signal = sampleSignal }: TeamsCardPre
         </div>
 
         <p className="text-xs text-gray-400 mt-4">
-          Preview only · This route is not authenticated and is intended for design review.
+          Preview only · Intended for design review.
         </p>
       </div>
     </div>
