@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect } from 'react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
-import { Search, User, Map, LayoutDashboard } from 'lucide-react';
+import { Search, User, Map, LayoutDashboard, Bell } from 'lucide-react';
 import { searchSuppliers } from '../../data/mockData';
 import type { Supplier } from '../../types';
 import { getCountryFlag } from '../../types';
@@ -80,6 +80,17 @@ export default function TopNav() {
           >
             <Map size={18} />
             Map View
+          </Link>
+          <Link
+            to="/preview/teams-card"
+            className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
+              isActive('/preview')
+                ? 'bg-blue-50 text-blue-800'
+                : 'text-gray-600 hover:bg-gray-100'
+            }`}
+          >
+            <Bell size={18} />
+            Signal Preview
           </Link>
         </div>
       </div>

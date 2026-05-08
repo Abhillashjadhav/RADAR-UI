@@ -1,7 +1,9 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { ChevronDown } from 'lucide-react';
+import { ArrowRight, ChevronDown, Zap } from 'lucide-react';
 import { alerts } from '../../data/mockData';
+import { sampleSignal } from '../../data/sample-signal';
+import { formatRevenueAtRisk, severityTokens } from '../Signal/signalUi';
 import AlertCard from './AlertCard';
 
 type FilterOption = 'all' | 'critical' | 'watchlist';
@@ -74,6 +76,47 @@ export default function AlertFeed() {
 
       {/* Alert List */}
       <div className="flex-1 overflow-y-auto alert-feed-scroll p-4 space-y-3">
+        {/* Active Signal — pinned at top, distinguished from regular alerts.
+            Clicking lands on the supplier detail screen with the Signal banner
+            pre-loaded (links.investigate carries ?signal=<id>). */}
+        {(() => {
+          const sev = severityTokens[sampleSignal.severity];
+          return (
+            <button
+              onClick={() => navigate(sampleSignal.links.investigate)}
+              className={`w-full p-3 rounded-lg border-2 ${sev.surfaceBg} ${sev.surfaceBorder} text-left transition-all hover:shadow-md focus:outline-none focus:ring-2 focus:ring-blue-500`}
+              aria-label={`Investigate active Signal ${sampleSignal.signal_id}`}
+            >
+              <div className="flex items-center gap-2 mb-2">
+                <Zap size={14} className="text-blue-800" aria-hidden="true" />
+                <span className="text-[10px] font-bold tracking-wider text-blue-800 uppercase">
+                  New Signal
+                </span>
+                <span className={`ml-auto text-[10px] font-semibold text-white px-1.5 py-0.5 rounded ${sev.badgeBg}`}>
+                  {sev.label}
+                </span>
+              </div>
+              <h3 className="font-semibold text-gray-900 text-sm mb-1">
+                {sampleSignal.entity.supplier_name}
+              </h3>
+              <p className="text-xs text-gray-700 mb-2 line-clamp-2">
+                {sampleSignal.trigger.event_label}
+              </p>
+              <div className="flex items-center justify-between text-xs">
+                <span className="text-gray-600 tabular-nums">
+                  {sampleSignal.trigger.score_before} → <span className="text-red-600 font-semibold">{sampleSignal.trigger.score_after}</span>
+                  <span className="text-gray-400"> · </span>
+                  {formatRevenueAtRisk(sampleSignal.exposure.revenue_at_risk_usd)}
+                </span>
+                <span className="text-blue-600 font-medium flex items-center gap-1">
+                  Investigate
+                  <ArrowRight size={12} />
+                </span>
+              </div>
+            </button>
+          );
+        })()}
+
         {displayedAlerts.map((alert) => (
           <AlertCard
             key={alert.id}
