@@ -82,15 +82,15 @@ export default function TopNav() {
             Map View
           </Link>
           <Link
-            to="/preview/teams-card"
+            to="/signals"
             className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
-              isActive('/preview')
+              isActive('/signals') || isActive('/preview')
                 ? 'bg-blue-50 text-blue-800'
                 : 'text-gray-600 hover:bg-gray-100'
             }`}
           >
             <Bell size={18} />
-            Signal Preview
+            Signals
           </Link>
         </div>
       </div>
