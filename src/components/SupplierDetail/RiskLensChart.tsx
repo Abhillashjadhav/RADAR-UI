@@ -2,9 +2,12 @@ import type { RiskLenses } from '../../types';
 
 interface RiskLensChartProps {
   riskLenses: RiskLenses;
+  // Optional: when provided, the matching lens row is visually emphasized.
+  // Default null preserves prior behaviour (zero regression).
+  highlightLens?: keyof RiskLenses | null;
 }
 
-export default function RiskLensChart({ riskLenses }: RiskLensChartProps) {
+export default function RiskLensChart({ riskLenses, highlightLens = null }: RiskLensChartProps) {
   const lensConfig = [
     { key: 'economic', label: 'Economic/Financial' },
     { key: 'geopolitical', label: 'Geopolitical' },
@@ -49,9 +52,19 @@ export default function RiskLensChart({ riskLenses }: RiskLensChartProps) {
         {lensConfig.map(({ key, label }) => {
           const score = riskLenses[key];
           const isTopRisk = topRisks.includes(key);
+          const isHighlighted = highlightLens === key;
 
           return (
-            <div key={key} className={`${isTopRisk ? 'bg-gray-50 -mx-2 px-2 py-1 rounded' : ''}`}>
+            <div
+              key={key}
+              className={`${
+                isHighlighted
+                  ? 'bg-blue-50 ring-2 ring-blue-500 -mx-2 px-2 py-1 rounded'
+                  : isTopRisk
+                  ? 'bg-gray-50 -mx-2 px-2 py-1 rounded'
+                  : ''
+              }`}
+            >
               <div className="flex items-center justify-between mb-1">
                 <span className={`text-xs ${isTopRisk ? 'font-semibold text-gray-900' : 'text-gray-600'}`}>
                   {label}

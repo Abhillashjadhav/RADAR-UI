@@ -1,14 +1,67 @@
-import { useParams, Link } from 'react-router-dom';
+import { useEffect, useReducer, useRef } from 'react';
+import { useParams, useSearchParams, Link } from 'react-router-dom';
 import { ChevronRight, Download, Bell, Star, MapPin } from 'lucide-react';
 import { getSupplierById } from '../../data/mockData';
 import { getCountryFlag } from '../../types';
 import RiskLensChart from './RiskLensChart';
 import ImpactAnalysis from './ImpactAnalysis';
 import SubTierNetwork from './SubTierNetwork';
+import SignalBanner from '../Signal/SignalBanner';
+import { sampleSignal } from '../../data/sample-signal';
+import { lensToRiskLensKey } from '../Signal/signalUi';
+
+// Persistence is intentionally a prototype-grade localStorage key, scoped by
+// signal_id, so acknowledging the demo Signal sticks across reloads. Real
+// implementation would round-trip an /acknowledge call to the backend.
+const ackStorageKey = (signalId: string) => `radar.signal.ack.${signalId}`;
 
 export default function SupplierDetail() {
   const { id } = useParams<{ id: string }>();
+  const [searchParams, setSearchParams] = useSearchParams();
   const supplier = id ? getSupplierById(id) : undefined;
+
+  // Resolve the active Signal: present only if ?signal=<id> matches a known
+  // Signal AND that Signal targets this supplier. Otherwise the screen
+  // renders exactly as before (zero regression).
+  const requestedSignalId = searchParams.get('signal');
+  const activeSignal =
+    requestedSignalId === sampleSignal.signal_id &&
+    supplier?.id === sampleSignal.entity.supplier_id
+      ? sampleSignal
+      : null;
+
+  // Force a re-render after writing to localStorage. Reading at render time
+  // (rather than mirroring into state) avoids a setState-in-effect cascade
+  // and keeps ack state coherent across navigation between suppliers.
+  const [, bumpAckTick] = useReducer((n: number) => n + 1, 0);
+  const acknowledged = activeSignal
+    ? localStorage.getItem(ackStorageKey(activeSignal.signal_id)) === '1'
+    : false;
+
+  const showBanner = !!activeSignal && !acknowledged;
+  const highlightLensKey = activeSignal ? lensToRiskLensKey[activeSignal.trigger.lens] ?? null : null;
+
+  const lensPanelRef = useRef<HTMLDivElement | null>(null);
+  useEffect(() => {
+    if (!showBanner || !highlightLensKey) return;
+    // Defer to next frame so the banner has been laid out before we scroll.
+    const id = requestAnimationFrame(() => {
+      lensPanelRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    });
+    return () => cancelAnimationFrame(id);
+  }, [showBanner, highlightLensKey]);
+
+  const handleAcknowledge = () => {
+    if (!activeSignal) return;
+    localStorage.setItem(ackStorageKey(activeSignal.signal_id), '1');
+    bumpAckTick();
+    // Drop the action=ack query param if present so the URL reflects the new state.
+    if (searchParams.get('action')) {
+      const next = new URLSearchParams(searchParams);
+      next.delete('action');
+      setSearchParams(next, { replace: true });
+    }
+  };
 
   if (!supplier) {
     return (
@@ -41,6 +94,12 @@ export default function SupplierDetail() {
 
   return (
     <div className="p-6">
+      {/* Signal banner — pinned above breadcrumb when ?signal=<id> matches.
+          Removed once acknowledged (localStorage-persisted). */}
+      {showBanner && activeSignal && (
+        <SignalBanner signal={activeSignal} onAcknowledge={handleAcknowledge} />
+      )}
+
       {/* Breadcrumb */}
       <nav className="flex items-center gap-2 text-sm mb-4">
         <Link to="/" className="text-gray-500 hover:text-blue-800">
@@ -127,8 +186,13 @@ export default function SupplierDetail() {
       {/* 3-Column Layout */}
       <div className="grid grid-cols-4 gap-6">
         {/* Left Column (25% = 1/4) */}
-        <div className="col-span-1">
-          <RiskLensChart riskLenses={supplier.riskLenses} />
+        <div
+          ref={lensPanelRef}
+          className={`col-span-1 rounded-xl transition-shadow ${
+            showBanner ? 'ring-2 ring-blue-500 ring-offset-2' : ''
+          }`}
+        >
+          <RiskLensChart riskLenses={supplier.riskLenses} highlightLens={highlightLensKey} />
         </div>
 
         {/* Center Column (50% = 2/4) */}

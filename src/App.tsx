@@ -3,6 +3,7 @@ import Layout from './components/Layout/Layout';
 import Dashboard from './components/Dashboard/Dashboard';
 import MapView from './components/MapView/MapView';
 import SupplierDetail from './components/SupplierDetail/SupplierDetail';
+import TeamsCardPreview from './components/Signal/TeamsCardPreview';
 
 function App() {
   return (
@@ -32,6 +33,8 @@ function App() {
             </Layout>
           }
         />
+        {/* Standalone preview surface for design review (no Layout chrome). */}
+        <Route path="/preview/teams-card" element={<TeamsCardPreview />} />
       </Routes>
     </BrowserRouter>
   );
