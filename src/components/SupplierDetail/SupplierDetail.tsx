@@ -183,9 +183,8 @@ export default function SupplierDetail() {
         </div>
       </div>
 
-      {/* 3-Column Layout */}
-      <div className="grid grid-cols-4 gap-6">
-        {/* Left Column (25% = 1/4) */}
+      {/* Top row: risk lenses + impact analysis */}
+      <div className="grid grid-cols-3 gap-6">
         <div
           ref={lensPanelRef}
           className={`col-span-1 rounded-xl transition-shadow ${
@@ -195,15 +194,14 @@ export default function SupplierDetail() {
           <RiskLensChart riskLenses={supplier.riskLenses} highlightLens={highlightLensKey} />
         </div>
 
-        {/* Center Column (50% = 2/4) */}
         <div className="col-span-2">
           <ImpactAnalysis supplier={supplier} />
         </div>
+      </div>
 
-        {/* Right Column (25% = 1/4) */}
-        <div className="col-span-1">
-          <SubTierNetwork supplierId={supplier.id} />
-        </div>
+      {/* Full-width Sub-Tier Network below */}
+      <div className="mt-6">
+        <SubTierNetwork supplierId={supplier.id} />
       </div>
     </div>
   );
