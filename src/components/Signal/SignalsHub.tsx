@@ -1,8 +1,10 @@
 import { useState, useMemo, useReducer } from 'react';
-import { AlertTriangle, CheckCircle, BarChart2 } from 'lucide-react';
+import { Link } from 'react-router-dom';
+import { AlertTriangle, CheckCircle, BarChart2, MessageSquare, AlertOctagon, FileCheck, ArrowRight } from 'lucide-react';
 import { ANOMALIES } from '../../data/anomalyMockData';
 import type { Anomaly } from '../../data/anomalyMockData';
-import { formatRevenueAtRisk } from './signalUi';
+import { formatRevenueAtRisk, lensHumanLabel, severityTokens } from './signalUi';
+import { sampleSignal } from '../../data/sample-signal';
 import AnomalyDrawer from './AnomalyDrawer';
 import RankedExceptionFeed from './RankedExceptionFeed';
 
@@ -106,7 +108,7 @@ function FeedRow({
 // ---------------------------------------------------------------------------
 // Main SignalsHub — anomaly feed home
 // ---------------------------------------------------------------------------
-type Tab = 'feed' | 'ranked';
+type Tab = 'feed' | 'ranked' | 'demo';
 
 export default function SignalsHub() {
   const [, bump] = useReducer((n: number) => n + 1, 0);
@@ -177,6 +179,15 @@ export default function SignalsHub() {
         >
           <BarChart2 size={15} />
           Ranked Exceptions
+        </button>
+        <button
+          onClick={() => setTab('demo')}
+          className={`flex items-center gap-2 px-4 py-2 text-sm font-medium rounded-md transition-colors ${
+            tab === 'demo' ? 'bg-white text-blue-800 shadow-sm' : 'text-gray-600 hover:text-gray-900'
+          }`}
+        >
+          <MessageSquare size={15} />
+          Signal Demo
         </button>
       </div>
 
@@ -258,6 +269,103 @@ export default function SignalsHub() {
           </div>
         </div>
       )}
+
+      {tab === 'demo' && (() => {
+        const sev = severityTokens[sampleSignal.severity];
+        const cards = [
+          {
+            to: '/preview/teams-card',
+            icon: MessageSquare,
+            title: 'Teams Card Preview',
+            subtitle: 'Deliverable A',
+            description: 'How the RADAR Signal renders when posted into a Microsoft Teams channel — sender chrome, severity stripe, score delta, recommendations, Acknowledge + Investigate CTAs.',
+            ctaLabel: 'Open preview',
+          },
+          {
+            to: sampleSignal.links.investigate,
+            icon: AlertOctagon,
+            title: 'Investigation Console',
+            subtitle: 'Deliverable B · banner active',
+            description: 'Supplier detail screen with the Signal banner pinned at the top. The Geopolitical risk lens auto-scrolls into view and is highlighted. Recommendations expandable. Acknowledge persists in localStorage.',
+            ctaLabel: 'Open investigation',
+          },
+          {
+            to: `/supplier/${sampleSignal.entity.supplier_id}`,
+            icon: FileCheck,
+            title: 'Control · No Signal',
+            subtitle: 'Regression check',
+            description: 'The same supplier detail screen without the ?signal query param. Demonstrates that the Signal banner is purely additive — when no signal is active, the screen behaves exactly as it did before.',
+            ctaLabel: 'Open control view',
+          },
+        ];
+        return (
+          <div>
+            <header className="mb-6">
+              <p className="text-xs uppercase tracking-wider text-gray-500 mb-1">Signal Model · Demo</p>
+              <h2 className="text-xl font-bold text-gray-900 mb-2">RADAR Signal — three surfaces</h2>
+              <p className="text-sm text-gray-600 max-w-3xl">
+                RADAR is repositioning from a destination dashboard into a background monitoring service
+                that pushes alerts when action is required. The dashboard isn't the front door — the alert is.
+                The three views below show the alert (Teams card), the drill-down behind it (investigation console),
+                and the unaffected baseline (control).
+              </p>
+            </header>
+
+            {/* Active Signal summary */}
+            <section className={`rounded-xl border ${sev.surfaceBorder} ${sev.surfaceBg} mb-6 overflow-hidden`}>
+              <div className={`h-1.5 ${sev.stripe}`} />
+              <div className="p-5">
+                <div className="flex flex-wrap items-center gap-2 mb-2">
+                  <span className={`text-xs font-semibold text-white px-2 py-0.5 rounded ${sev.badgeBg}`}>{sev.label}</span>
+                  <span className="text-xs font-medium px-2 py-0.5 rounded bg-white border border-gray-200 text-gray-700">
+                    {lensHumanLabel[sampleSignal.trigger.lens]}
+                  </span>
+                  <span className="text-xs text-gray-500 tabular-nums">{sampleSignal.signal_id}</span>
+                </div>
+                <h3 className="text-base font-semibold text-gray-900 leading-snug">
+                  {sampleSignal.entity.supplier_name} — {sampleSignal.trigger.event_label.toLowerCase()}
+                </h3>
+                <div className="flex flex-wrap items-center gap-x-6 gap-y-2 mt-3 text-sm">
+                  <div><span className="text-gray-500">Score </span><span className="font-semibold tabular-nums">{sampleSignal.trigger.score_before} → <span className="text-red-600">{sampleSignal.trigger.score_after}</span></span></div>
+                  <div><span className="text-gray-500">Revenue at risk </span><span className="font-semibold tabular-nums">{formatRevenueAtRisk(sampleSignal.exposure.revenue_at_risk_usd)}</span></div>
+                  <div><span className="text-gray-500">Confidence </span><span className="font-semibold tabular-nums">{Math.round(sampleSignal.confidence * 100)}%</span></div>
+                  <div><span className="text-gray-500">Tier </span><span className="font-semibold tabular-nums">{sampleSignal.entity.tier}</span></div>
+                </div>
+              </div>
+            </section>
+
+            {/* Three surface entry cards */}
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
+              {cards.map(({ to, icon: Icon, title, subtitle, description, ctaLabel }) => (
+                <Link key={to} to={to} className="group bg-white rounded-xl border border-gray-200 p-5 hover:border-blue-500 hover:shadow-md transition-all">
+                  <div className="flex items-start gap-3 mb-3">
+                    <div className="w-10 h-10 rounded-lg bg-blue-50 text-blue-800 flex items-center justify-center flex-shrink-0">
+                      <Icon size={20} />
+                    </div>
+                    <div>
+                      <p className="text-xs uppercase tracking-wider text-gray-500">{subtitle}</p>
+                      <h4 className="font-semibold text-gray-900">{title}</h4>
+                    </div>
+                  </div>
+                  <p className="text-sm text-gray-600 mb-4">{description}</p>
+                  <span className="inline-flex items-center gap-1 text-sm font-medium text-blue-700 group-hover:text-blue-800">
+                    {ctaLabel}<ArrowRight size={14} />
+                  </span>
+                </Link>
+              ))}
+            </div>
+
+            <section>
+              <h3 className="text-sm font-semibold text-gray-900 mb-2">Direct routes</h3>
+              <ul className="text-xs text-gray-600 space-y-1">
+                <li><code className="bg-gray-100 px-1.5 py-0.5 rounded">/preview/teams-card</code> — Teams card preview</li>
+                <li><code className="bg-gray-100 px-1.5 py-0.5 rounded">/supplier/{sampleSignal.entity.supplier_id}?signal={sampleSignal.signal_id}</code> — investigation console (banner active)</li>
+                <li><code className="bg-gray-100 px-1.5 py-0.5 rounded">/supplier/{sampleSignal.entity.supplier_id}</code> — control (no banner)</li>
+              </ul>
+            </section>
+          </div>
+        );
+      })()}
 
       {/* Anomaly detail drawer */}
       {selectedAnomaly && (
