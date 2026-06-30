@@ -5,6 +5,7 @@ import MapView from './components/MapView/MapView';
 import SupplierDetail from './components/SupplierDetail/SupplierDetail';
 import TeamsCardPreview from './components/Signal/TeamsCardPreview';
 import SignalsHub from './components/Signal/SignalsHub';
+import NetworkView from './components/NetworkView/NetworkView';
 
 function App() {
   return (
@@ -36,6 +37,14 @@ function App() {
         />
         {/* Signal model demo views — wrapped in Layout so the TopNav stays
             present and reviewers can move between surfaces in one shell. */}
+        <Route
+          path="/network"
+          element={
+            <Layout showAlertFeed={false}>
+              <NetworkView />
+            </Layout>
+          }
+        />
         <Route
           path="/signals"
           element={
