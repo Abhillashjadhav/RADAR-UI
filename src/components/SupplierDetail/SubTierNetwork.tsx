@@ -237,11 +237,12 @@ export default function SubTierNetwork({ supplierId: _ }: { supplierId: string }
   const [showModal, setShowModal] = useState(false);
 
   const result = useMemo(
-    () => selectPrioritySuppliers(LARGE_NETWORK, { paretoTarget: coverageTarget }),
+    () => selectPrioritySuppliers(LARGE_NETWORK, { coverageTarget }),
     [coverageTarget],
   );
 
-  const { prioritySet, totalCount, coverageAchieved, exceedsLegibilityCap, caption } = result;
+  const { prioritySet, totalSupplierCount: totalCount, coverageAchieved, caption } = result;
+  const exceedsLegibilityCap = prioritySet.length > 30;
 
   const filteredPriority = useMemo(
     () =>
