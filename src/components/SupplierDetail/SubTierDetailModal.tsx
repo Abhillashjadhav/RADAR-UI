@@ -22,7 +22,7 @@ const impactBadge: Record<string, string> = {
 
 export default function SubTierDetailModal({ root, prioritySet, onClose }: SubTierDetailModalProps) {
   const [search, setSearch] = useState('');
-  const [tierFilter, setTierFilter] = useState<'all' | '1' | '2' | '3'>('all');
+  const [tierFilter, setTierFilter] = useState<'all' | '1' | '2' | '3' | '4' | '5'>('all');
   const [impactFilter, setImpactFilter] = useState<'all' | 'Delivery' | 'Compliance' | 'Cost'>('all');
   const [sortKey, setSortKey] = useState<SortKey>('tier');
   const [sortDir, setSortDir] = useState<SortDir>('asc');
@@ -143,7 +143,7 @@ export default function SubTierDetailModal({ root, prioritySet, onClose }: SubTi
           </div>
 
           <div className="flex items-center gap-1">
-            {(['all', '1', '2', '3'] as const).map(t => (
+            {(['all', '1', '2', '3', '4', '5'] as const).map(t => (
               <button
                 key={t}
                 onClick={() => setTierFilter(t)}
@@ -235,7 +235,9 @@ export default function SubTierDetailModal({ root, prioritySet, onClose }: SubTi
                       <span className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-semibold ${
                         node.tier === 1 ? 'bg-blue-100 text-blue-700' :
                         node.tier === 2 ? 'bg-purple-100 text-purple-700' :
-                        'bg-gray-100 text-gray-700'
+                        node.tier === 3 ? 'bg-gray-100 text-gray-700' :
+                        node.tier === 4 ? 'bg-teal-100 text-teal-700' :
+                        'bg-amber-100 text-amber-700'
                       }`}>
                         T{node.tier}
                       </span>

@@ -2,11 +2,11 @@ import type { SubTierFullNode } from '../data/subtierMockData';
 import { flattenNetwork } from '../data/subtierMockData';
 
 // ---------------------------------------------------------------------------
-// Tunable constants — change these at the top, nowhere else in the logic.
+// Tunable constants
 // ---------------------------------------------------------------------------
-const CRITICAL_RISK_THRESHOLD = 70; // risk score that qualifies a node as critical
-const PARETO_COVERAGE = 0.80;        // smallest set covering this fraction of revenue
-const LEGIBILITY_CAP = 10;           // max highlighted nodes before the graph gets cluttered
+const CRITICAL_RISK_THRESHOLD = 70;
+const DEFAULT_PARETO_COVERAGE = 0.80;
+const LEGIBILITY_CAP = 30; // soft cap — exceeded → switch to tabular in UI
 
 // ---------------------------------------------------------------------------
 // Types
@@ -16,12 +16,14 @@ export type PriorityReason = 'spof' | 'choke' | 'critical-risk' | 'pareto';
 export interface PriorityNode {
   node: SubTierFullNode;
   reasons: PriorityReason[];
-  priority: number; // higher = more important; used for cap-trimming
+  priority: number;
 }
 
 export interface PriorityResult {
   prioritySet: PriorityNode[];
-  totalCount: number;  // excludes QSC root (tier 0)
+  totalCount: number;
+  coverageAchieved: number;   // fraction of total revenueAtRisk covered by prioritySet
+  exceedsLegibilityCap: boolean;
   caption: string;
   rulesApplied: string[];
 }
@@ -29,31 +31,23 @@ export interface PriorityResult {
 // ---------------------------------------------------------------------------
 // selectPrioritySuppliers
 //
-// Returns the emphasized set: nodes a buyer should act on first.
-// A node enters the set if ANY of these hold:
-//   1. It is a Single Point of Failure (sole source on a critical path).
-//   2. It is a Choke Point (multiple parent paths converge on it).
-//   3. Its risk score ≥ CRITICAL_RISK_THRESHOLD (critical risk on an
-//      exposed path to a finished good).
-//   4. It is in the smallest Pareto set covering PARETO_COVERAGE % of this
-//      commodity's Revenue at Risk (80/20 rule).
+// Selection order:
+//   1. Non-negotiable: SPOF, choke point, critical risk (score ≥ threshold)
+//   2. Pareto loop: add by revenueAtRisk descending until coverageTarget reached
 //
-// The result is capped at LEGIBILITY_CAP for graph legibility; the rest
-// remain visible but de-emphasized and are always reachable via the detail table.
+// No hard cap — returns however many coverage demands.
+// exceedsLegibilityCap signals the UI to switch from card grid to tabular.
 // ---------------------------------------------------------------------------
 export function selectPrioritySuppliers(
   root: SubTierFullNode,
-  opts?: { cap?: number; criticalThreshold?: number; paretoTarget?: number }
+  opts?: { criticalThreshold?: number; paretoTarget?: number },
 ): PriorityResult {
-  const cap = opts?.cap ?? LEGIBILITY_CAP;
   const criticalThreshold = opts?.criticalThreshold ?? CRITICAL_RISK_THRESHOLD;
-  const paretoTarget = opts?.paretoTarget ?? PARETO_COVERAGE;
+  const paretoTarget = opts?.paretoTarget ?? DEFAULT_PARETO_COVERAGE;
 
-  // Flatten tree, exclude root (your own company, tier 0)
   const allNodes = flattenNetwork(root).filter(n => n.tier > 0);
   const totalCount = allNodes.length;
 
-  // Accumulator: per-node priority score + reason set
   const acc = new Map<string, { node: SubTierFullNode; reasons: Set<PriorityReason>; priority: number }>();
 
   const touch = (node: SubTierFullNode) => {
@@ -63,59 +57,51 @@ export function selectPrioritySuppliers(
     return acc.get(node.id)!;
   };
 
-  // Rule 1 — SPOF: highest weight because sole-source failure blocks all paths
+  // Non-negotiable rules — always include regardless of Pareto
   for (const n of allNodes.filter(n => n.isSPOF)) {
     const e = touch(n);
     e.reasons.add('spof');
     e.priority += 50;
   }
-
-  // Rule 2 — Choke point: multiple paths converge here; disruption multiplies
   for (const n of allNodes.filter(n => n.isChokePoint)) {
     const e = touch(n);
     e.reasons.add('choke');
     e.priority += 35;
   }
-
-  // Rule 3 — Critical risk score on exposed path
   for (const n of allNodes.filter(n => n.riskScore >= criticalThreshold)) {
     const e = touch(n);
     e.reasons.add('critical-risk');
-    // Add the actual score so higher-scoring nodes rank ahead of equal-rule peers
     e.priority += n.riskScore;
   }
 
-  // Rule 4 — Pareto: cover PARETO_COVERAGE of total Revenue at Risk
-  // TODO: plug in live revenueAtRisk from the data pipeline when available;
-  //       currently falls back to risk-score ordering when revenueAtRisk is null.
-  const withRevenue = allNodes
-    .filter(n => n.revenueAtRisk !== null)
+  // Pareto coverage loop
+  const totalRevenue = allNodes.reduce((s, n) => s + (n.revenueAtRisk ?? 0), 0);
+  const byRevenue = [...allNodes]
+    .filter(n => n.revenueAtRisk !== null && n.revenueAtRisk > 0)
     .sort((a, b) => (b.revenueAtRisk ?? 0) - (a.revenueAtRisk ?? 0));
 
-  const noRevenue = allNodes.filter(n => n.revenueAtRisk === null);
-
-  const totalRevenue = withRevenue.reduce((s, n) => s + (n.revenueAtRisk ?? 0), 0);
-  let cumRevenue = 0;
-  for (const n of withRevenue) {
-    if (totalRevenue > 0 && cumRevenue / totalRevenue >= paretoTarget) break;
-    cumRevenue += n.revenueAtRisk ?? 0;
+  let cumulativeRevenue = 0;
+  for (const n of byRevenue) {
+    const currentCoverage = totalRevenue > 0 ? cumulativeRevenue / totalRevenue : 1;
+    if (currentCoverage >= paretoTarget) break;
+    cumulativeRevenue += n.revenueAtRisk ?? 0;
     const e = touch(n);
     e.reasons.add('pareto');
     e.priority += 15;
   }
 
-  // Fallback: if no revenue data, rank by risk score (TODO: remove when data lands)
-  if (withRevenue.length === 0) {
-    const byScore = [...noRevenue].sort((a, b) => b.riskScore - a.riskScore);
-    for (const n of byScore.slice(0, Math.ceil(noRevenue.length * paretoTarget))) {
+  // Fallback when no revenue data
+  if (byRevenue.length === 0) {
+    const byScore = [...allNodes].sort((a, b) => b.riskScore - a.riskScore);
+    for (const n of byScore.slice(0, Math.ceil(allNodes.length * paretoTarget))) {
       const e = touch(n);
       e.reasons.add('pareto');
       e.priority += 15;
     }
   }
 
-  // Sort by priority descending; apply legibility cap
-  const sorted = [...acc.values()].sort((a, b) => b.priority - a.priority).slice(0, cap);
+  // Sort by priority descending, no hard cap
+  const sorted = [...acc.values()].sort((a, b) => b.priority - a.priority);
 
   const prioritySet: PriorityNode[] = sorted.map(s => ({
     node: s.node,
@@ -123,7 +109,10 @@ export function selectPrioritySuppliers(
     priority: s.priority,
   }));
 
-  // Build readable caption
+  // Compute coverage achieved by this prioritySet
+  const coveredRevenue = prioritySet.reduce((s, p) => s + (p.node.revenueAtRisk ?? 0), 0);
+  const coverageAchieved = totalRevenue > 0 ? coveredRevenue / totalRevenue : 0;
+
   const reasonsPresent = new Set(sorted.flatMap(s => [...s.reasons]));
   const rulesApplied: string[] = [
     reasonsPresent.has('spof') && 'SPOF',
@@ -132,9 +121,17 @@ export function selectPrioritySuppliers(
     reasonsPresent.has('pareto') && 'top revenue exposure',
   ].filter(Boolean) as string[];
 
+  const pct = Math.round(coverageAchieved * 100);
   const caption =
     `Showing ${prioritySet.length} of ${totalCount} suppliers — ` +
-    `selected by ${rulesApplied.join(', ')}.`;
+    `selected by ${rulesApplied.join(', ')} · covering ${pct}% of revenue at risk.`;
 
-  return { prioritySet, totalCount, caption, rulesApplied };
+  return {
+    prioritySet,
+    totalCount,
+    coverageAchieved,
+    exceedsLegibilityCap: prioritySet.length > LEGIBILITY_CAP,
+    caption,
+    rulesApplied,
+  };
 }

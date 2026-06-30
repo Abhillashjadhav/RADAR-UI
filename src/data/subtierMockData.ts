@@ -3,7 +3,7 @@ import type { ImpactType } from '../types';
 export interface SubTierFullNode {
   id: string;
   name: string;
-  tier: 0 | 1 | 2 | 3;
+  tier: 0 | 1 | 2 | 3 | 4 | 5;
   location: { city: string; country: string; zip?: string };
   commodity: string;
   riskScore: number;
