@@ -5,7 +5,6 @@ import { getSupplierById } from '../../data/mockData';
 import { getCountryFlag } from '../../types';
 import RiskLensChart from './RiskLensChart';
 import ImpactAnalysis from './ImpactAnalysis';
-import SubTierNetwork from './SubTierNetwork';
 import SignalBanner from '../Signal/SignalBanner';
 import { sampleSignal } from '../../data/sample-signal';
 import { lensToRiskLensKey } from '../Signal/signalUi';
@@ -199,10 +198,6 @@ export default function SupplierDetail() {
         </div>
       </div>
 
-      {/* Full-width Sub-Tier Network below */}
-      <div className="mt-6">
-        <SubTierNetwork supplierId={supplier.id} />
-      </div>
     </div>
   );
 }
