@@ -5,7 +5,6 @@ import {
   Truck,
   ShieldCheck,
   DollarSign,
-  ChevronDown,
   Info,
   ExternalLink,
 } from 'lucide-react';
@@ -30,10 +29,9 @@ interface NodeProps {
   activeFilter: 'all' | 'Delivery' | 'Compliance' | 'Cost';
   selectedId: string | null;
   onSelect: (n: SubTierFullNode) => void;
-  isRoot?: boolean;
 }
 
-function NetworkNode({ node, priorityMap, activeFilter, selectedId, onSelect, isRoot }: NodeProps) {
+function NetworkNode({ node, priorityMap, activeFilter, selectedId, onSelect }: NodeProps) {
   if (node.tier === 0) {
     // Root node — simple anchor
     return (
@@ -107,10 +105,14 @@ function NetworkNode({ node, priorityMap, activeFilter, selectedId, onSelect, is
 
         {/* Flags */}
         {node.isSPOF && (
-          <AlertTriangle size={13} className={isHighlighted ? 'text-red-500 flex-shrink-0' : 'text-gray-300 flex-shrink-0'} title="SPOF" />
+          <span title="SPOF">
+            <AlertTriangle size={13} className={isHighlighted ? 'text-red-500 flex-shrink-0' : 'text-gray-300 flex-shrink-0'} />
+          </span>
         )}
         {node.isChokePoint && (
-          <GitMerge size={13} className={isHighlighted ? 'text-orange-500 flex-shrink-0' : 'text-gray-300 flex-shrink-0'} title="Choke Point" />
+          <span title="Choke Point">
+            <GitMerge size={13} className={isHighlighted ? 'text-orange-500 flex-shrink-0' : 'text-gray-300 flex-shrink-0'} />
+          </span>
         )}
 
         {/* Impact badge — only on priority nodes */}
@@ -149,7 +151,7 @@ const REASON_LABELS: Record<string, string> = {
 };
 
 // ---- Selection-logic popover ----------------------------------------------
-function SelectionPopover({ rulesApplied, cap }: { rulesApplied: string[]; cap: number }) {
+function SelectionPopover({ cap }: { cap: number }) {
   const [open, setOpen] = useState(false);
   return (
     <span className="relative inline-block">
@@ -267,7 +269,7 @@ export default function SubTierNetwork({ supplierId: _ }: { supplierId: string }
   const [selectedNode, setSelectedNode] = useState<SubTierFullNode | null>(null);
   const [showModal, setShowModal] = useState(false);
 
-  const { prioritySet, totalCount, caption, rulesApplied } = selectPrioritySuppliers(PCB_NETWORK);
+  const { prioritySet, totalCount, caption } = selectPrioritySuppliers(PCB_NETWORK);
 
   const priorityMap = new Map(prioritySet.map(p => [p.node.id, p]));
   const selectedPriority = selectedNode ? priorityMap.get(selectedNode.id) ?? null : null;
@@ -308,7 +310,7 @@ export default function SubTierNetwork({ supplierId: _ }: { supplierId: string }
           {/* Caption row */}
           <div className="flex items-center gap-2 text-xs text-gray-600 bg-blue-50 border border-blue-100 rounded-lg px-3 py-2">
             <span className="flex-1">{caption}</span>
-            <SelectionPopover rulesApplied={rulesApplied} cap={10} />
+            <SelectionPopover cap={10} />
           </div>
 
           {/* Risk-category filter chips */}
@@ -349,7 +351,6 @@ export default function SubTierNetwork({ supplierId: _ }: { supplierId: string }
             activeFilter={activeFilter}
             selectedId={selectedNode?.id ?? null}
             onSelect={setSelectedNode}
-            isRoot
           />
         </div>
 
