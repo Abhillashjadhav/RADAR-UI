@@ -5,7 +5,7 @@ import { flattenNetwork } from '../data/subtierMockData';
 // Named constants — change here only
 // ---------------------------------------------------------------------------
 export const MIN_MEANINGFUL_EXPOSURE = 0.1;    // $M — $100K floor for the $M-scale mock network
-export const LIVE_MIN_EXPOSURE = 0.001;        // $M — $1K floor sized to the customer's cost-exposure data
+export const LIVE_MIN_EXPOSURE = 0.0005;       // $M — $500 floor sized to the customer's cost-exposure data
 export const COVERAGE_70 = 0.70;
 export const COVERAGE_80 = 0.80;
 export const COVERAGE_90 = 0.90;

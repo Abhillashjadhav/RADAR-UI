@@ -9,6 +9,8 @@ interface SubTierDetailModalProps {
   root: SubTierFullNode;
   prioritySet: PriorityNode[];
   onClose: () => void;
+  /** Column label for the exposure metric (e.g. "Cost Exposure" for live data). */
+  exposureLabel?: string;
 }
 
 type SortKey = 'tier' | 'name' | 'riskScore' | 'revenueAtRisk';
@@ -20,7 +22,7 @@ const impactBadge: Record<string, string> = {
   Cost: 'bg-blue-100 text-blue-700',
 };
 
-export default function SubTierDetailModal({ root, prioritySet, onClose }: SubTierDetailModalProps) {
+export default function SubTierDetailModal({ root, prioritySet, onClose, exposureLabel = 'Rev. at Risk' }: SubTierDetailModalProps) {
   const [search, setSearch] = useState('');
   const [tierFilter, setTierFilter] = useState<'all' | '1' | '2' | '3' | '4' | '5'>('all');
   const [impactFilter, setImpactFilter] = useState<'all' | 'Delivery' | 'Compliance' | 'Cost'>('all');
@@ -72,7 +74,7 @@ export default function SubTierDetailModal({ root, prioritySet, onClose }: SubTi
   );
 
   const exportCSV = () => {
-    const header = ['Tier', 'Supplier', 'City', 'Country', 'ZIP', 'Commodity', 'Risk Score', 'Impact', 'Revenue at Risk ($M)', 'SPOF', 'Choke Point', 'Priority'];
+    const header = ['Tier', 'Supplier', 'City', 'Country', 'ZIP', 'Commodity', 'Risk Score', 'Impact', `${exposureLabel} ($M)`, 'Exposure Status', 'Cost Estimated', 'SPOF', 'Choke Point', 'Priority'];
     const rowData = allRows.map(n => [
       `T${n.tier}`,
       n.name,
@@ -82,7 +84,9 @@ export default function SubTierDetailModal({ root, prioritySet, onClose }: SubTi
       n.commodity,
       n.riskScore,
       n.primaryImpact,
-      n.revenueAtRisk !== null ? n.revenueAtRisk.toFixed(3) : '',
+      n.revenueAtRisk !== null ? n.revenueAtRisk.toFixed(4) : '',
+      n.revenueAtRisk !== null ? 'known' : 'insufficient data',
+      n.costEstimated ? 'Yes' : 'No',
       n.isSPOF ? 'Yes' : 'No',
       n.isChokePoint ? 'Yes' : 'No',
       priorityIds.has(n.id) ? 'Yes' : 'No',
@@ -213,7 +217,7 @@ export default function SubTierDetailModal({ root, prioritySet, onClose }: SubTi
                   className="px-4 py-2.5 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider cursor-pointer hover:text-gray-900 select-none"
                   onClick={() => toggleSort('revenueAtRisk')}
                 >
-                  Rev. at Risk <SortIcon k="revenueAtRisk" />
+                  {exposureLabel} <SortIcon k="revenueAtRisk" />
                 </th>
                 <th className="px-4 py-2.5 text-center text-xs font-semibold text-gray-500 uppercase tracking-wider">
                   Flags
@@ -268,7 +272,16 @@ export default function SubTierDetailModal({ root, prioritySet, onClose }: SubTi
                       </span>
                     </td>
                     <td className="px-4 py-2.5 font-medium text-gray-900 tabular-nums">
-                      {node.revenueAtRisk !== null ? formatRevenue(node.revenueAtRisk) : <span className="text-gray-400">—</span>}
+                      {node.revenueAtRisk !== null ? (
+                        <span className="inline-flex items-center gap-1">
+                          {formatRevenue(node.revenueAtRisk)}
+                          {node.costEstimated && (
+                            <span className="inline-flex items-center px-1 py-0.5 rounded text-[10px] font-semibold bg-amber-100 text-amber-700">est.</span>
+                          )}
+                        </span>
+                      ) : (
+                        <span className="text-xs italic text-gray-400">exposure n/a</span>
+                      )}
                     </td>
                     <td className="px-4 py-2.5">
                       <div className="flex items-center justify-center gap-1.5">

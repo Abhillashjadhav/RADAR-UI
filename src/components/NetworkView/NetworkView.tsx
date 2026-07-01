@@ -812,6 +812,7 @@ export default function NetworkView({
           root={root}
           prioritySet={prioritySet}
           onClose={() => setShowModal(false)}
+          exposureLabel={isLive ? 'Cost Exposure' : 'Rev. at Risk'}
         />
       )}
     </div>
