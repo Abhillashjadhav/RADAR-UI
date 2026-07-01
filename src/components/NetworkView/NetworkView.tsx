@@ -9,7 +9,7 @@ import { flattenNetwork } from '../../data/subtierMockData';
 import {
   selectPrioritySuppliers,
   COVERAGE_70, COVERAGE_80, COVERAGE_90,
-  MIN_MEANINGFUL_REVENUE,
+  MIN_MEANINGFUL_EXPOSURE, LIVE_MIN_EXPOSURE,
 } from '../../utils/selectPrioritySuppliers';
 import type { PriorityNode } from '../../utils/selectPrioritySuppliers';
 import { buildParentMap, pathToRoot } from '../../utils/buildParentMap';
@@ -232,7 +232,7 @@ function scoreFill(score: number) {
 // ---------------------------------------------------------------------------
 // "Why these?" popover
 // ---------------------------------------------------------------------------
-function SelectionPopover({ floor }: { floor: number }) {
+function SelectionPopover({ floor, exposureLabel = 'revenue at risk' }: { floor: number; exposureLabel?: string }) {
   const [open, setOpen] = useState(false);
   return (
     <span className="relative inline-block">
@@ -249,12 +249,12 @@ function SelectionPopover({ floor }: { floor: number }) {
           <div className="absolute left-0 top-5 z-20 w-72 bg-white border border-gray-200 rounded-xl shadow-xl p-4">
             <p className="text-xs font-semibold text-gray-700 mb-2">Selection logic</p>
             <ol className="space-y-1.5 text-xs text-gray-700">
-              <li><span className="font-semibold text-blue-600">Spine:</span> Revenue Pareto — smallest set covering selected % of total revenue at risk</li>
-              <li><span className="font-semibold text-red-600">+SPOF:</span> sole-source nodes added if revenue ≥ {formatRevenue(floor)}</li>
-              <li><span className="font-semibold text-orange-600">+Choke:</span> convergence nodes added if revenue ≥ {formatRevenue(floor)}</li>
+              <li><span className="font-semibold text-blue-600">Spine:</span> Pareto — smallest set covering selected % of total {exposureLabel}</li>
+              <li><span className="font-semibold text-red-600">+SPOF:</span> sole-source nodes added if {exposureLabel} ≥ {formatRevenue(floor)} and priced</li>
+              <li><span className="font-semibold text-orange-600">+Choke:</span> convergence nodes added if {exposureLabel} ≥ {formatRevenue(floor)} and priced</li>
             </ol>
             <p className="text-xs text-gray-400 mt-3 pt-2 border-t border-gray-100">
-              Nodes below {formatRevenue(floor)} revenue are never shown on the map — they live in the full table only.
+              Nodes below {formatRevenue(floor)} {exposureLabel} — or with no priced parts — are never shown on the map; they live in the full table only.
             </p>
           </div>
         </>
@@ -270,10 +270,12 @@ function NodeSidePanel({
   priorityInfo,
   pathNodes,
   onClose,
+  exposureLabel = 'Revenue at Risk',
 }: {
   priorityInfo: PriorityNode;
   pathNodes: SubTierFullNode[];
   onClose: () => void;
+  exposureLabel?: string;
 }) {
   const { node, reasons, revenueShare } = priorityInfo;
   const cfg = IMPACT_CONFIG[node.primaryImpact];
@@ -328,11 +330,18 @@ function NodeSidePanel({
         </span>
       </div>
 
-      {/* Revenue */}
+      {/* Exposure */}
       <div>
-        <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1">Revenue at Risk</p>
+        <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1">
+          {exposureLabel}
+          {node.costEstimated && (
+            <span className="ml-1.5 inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-semibold bg-amber-100 text-amber-700 normal-case tracking-normal">
+              est.
+            </span>
+          )}
+        </p>
         <p className="text-lg font-bold text-gray-900 tabular-nums">
-          {node.revenueAtRisk !== null ? formatRevenue(node.revenueAtRisk) : '—'}
+          {node.revenueAtRisk !== null ? formatRevenue(node.revenueAtRisk) : <span className="text-gray-400">exposure n/a</span>}
         </p>
         <p className="text-xs text-gray-400">{(revenueShare * 100).toFixed(1)}% of network total</p>
       </div>
@@ -581,20 +590,23 @@ export default function NetworkView({
   const [showModal, setShowModal] = useState(false);
 
   const isLive = dataSource === 'live';
-  const exposureWord = isLive ? 'exposure' : 'revenue at risk';
+  const exposureWord = isLive ? 'cost exposure' : 'revenue at risk';
+  const exposureFloor = isLive ? LIVE_MIN_EXPOSURE : MIN_MEANINGFUL_EXPOSURE;
 
   const result = useMemo(
     () => selectPrioritySuppliers(root, {
       coverageTarget,
-      exposureLabel: dataSource === 'live' ? 'exposure' : 'revenue at risk',
+      exposureLabel: exposureWord,
+      exposureFloor,
     }),
-    [root, coverageTarget, dataSource],
+    [root, coverageTarget, exposureWord, exposureFloor],
   );
 
   const {
     prioritySet,
     totalSupplierCount,
     belowFloorCount,
+    insufficientDataCount,
     coverageAchieved,
     caption,
   } = result;
@@ -682,7 +694,7 @@ export default function NetworkView({
           <p className="text-sm">
             Click ANALYZE to surface the material suppliers across all {totalSupplierCount} in the network by {exposureWord}.
             <br />
-            Nodes below the {formatRevenue(MIN_MEANINGFUL_REVENUE)} {exposureWord} floor are never shown on the map.
+            Nodes below the {formatRevenue(exposureFloor)} {exposureWord} floor are never shown on the map.
           </p>
         </div>
       )}
@@ -695,9 +707,10 @@ export default function NetworkView({
             <div className="bg-amber-50 border border-amber-200 rounded-xl px-4 py-2.5 mb-3 text-xs text-amber-800 flex items-start gap-2">
               <Info size={14} className="flex-shrink-0 mt-0.5" />
               <span>
-                Derived from the customer BOM file (792 parts). The sheet carries no revenue,
-                so <strong>“exposure” is a derived index</strong> (Impact Score × Where-Used), not dollars.
-                SPOF = single-sourced + high-impact; choke points = sub-tier entities shared across multiple tier-1 suppliers.
+                Ranked by <strong>annual cost exposure (modeled)</strong> from the customer BOM (792 parts) —
+                modeled as unit cost × usage volume. This is <strong>cost-based, not revenue</strong>; assembly/custom
+                rows are estimates. Suppliers with no priced parts are excluded from the map as
+                “insufficient data” and shown in the full table as <em>exposure n/a</em> — never a false $0.
               </span>
             </div>
           )}
@@ -710,7 +723,7 @@ export default function NetworkView({
             </p>
             <p className="text-xs text-blue-600 mt-1 flex items-center gap-2 flex-wrap">
               <span>{caption}</span>
-              <SelectionPopover floor={MIN_MEANINGFUL_REVENUE} />
+              <SelectionPopover floor={exposureFloor} exposureLabel={exposureWord} />
             </p>
           </div>
 
@@ -730,7 +743,8 @@ export default function NetworkView({
               </button>
             ))}
             <span className="text-xs text-gray-400">
-              → {prioritySet.length} surfaced, {belowFloorCount} below {exposureWord} floor
+              → {prioritySet.length} surfaced, {belowFloorCount} below floor
+              {insufficientDataCount > 0 && `, ${insufficientDataCount} insufficient data`}
             </span>
             <button
               onClick={() => setShowModal(true)}
@@ -763,6 +777,7 @@ export default function NetworkView({
                   priorityInfo={selectedPriority}
                   pathNodes={selectedPath}
                   onClose={() => setSelectedNodeId(null)}
+                  exposureLabel={isLive ? 'Annual Cost Exposure' : 'Revenue at Risk'}
                 />
               </div>
             )}
