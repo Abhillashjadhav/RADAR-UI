@@ -8,7 +8,8 @@ export interface SubTierFullNode {
   commodity: string;
   riskScore: number;
   primaryImpact: ImpactType;
-  revenueAtRisk: number | null; // $M — null if data unavailable
+  revenueAtRisk: number | null; // $M — cost exposure for live data; null = insufficient data (never a false $0)
+  costEstimated?: boolean; // live data only: priced from estimated unit cost ("ESTIMATE - no match")
   isSPOF: boolean;
   isChokePoint: boolean;
   topRiskLens: string; // short code matching lens labels (GPS, EFS, ESG…)

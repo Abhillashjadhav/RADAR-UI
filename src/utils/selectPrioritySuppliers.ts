@@ -4,7 +4,8 @@ import { flattenNetwork } from '../data/subtierMockData';
 // ---------------------------------------------------------------------------
 // Named constants — change here only
 // ---------------------------------------------------------------------------
-export const MIN_MEANINGFUL_REVENUE = 0.1;   // $M — $100K floor; nodes below never surface on map
+export const MIN_MEANINGFUL_EXPOSURE = 0.1;    // $M — $100K floor for the $M-scale mock network
+export const LIVE_MIN_EXPOSURE = 0.001;        // $M — $1K floor sized to the customer's cost-exposure data
 export const COVERAGE_70 = 0.70;
 export const COVERAGE_80 = 0.80;
 export const COVERAGE_90 = 0.90;
@@ -23,10 +24,11 @@ export interface PriorityNode {
 
 export interface PriorityResult {
   prioritySet: PriorityNode[];
-  totalSupplierCount: number;   // all non-root nodes
-  belowFloorCount: number;      // nodes excluded because revenueAtRisk < MIN_MEANINGFUL_REVENUE
-  totalNetworkRevenue: number;  // $M — sum across all non-root nodes with revenue data
-  coverageAchieved: number;     // fraction actually covered by prioritySet
+  totalSupplierCount: number;      // all non-root nodes
+  belowFloorCount: number;         // nodes with KNOWN exposure but below the floor (low-exposure)
+  insufficientDataCount: number;   // nodes with UNKNOWN exposure (null) — excluded, never treated as $0
+  totalNetworkRevenue: number;     // $M — sum across all eligible nodes
+  coverageAchieved: number;        // fraction actually covered by prioritySet
   caption: string;
 }
 
@@ -41,19 +43,27 @@ export interface PriorityResult {
 // ---------------------------------------------------------------------------
 export function selectPrioritySuppliers(
   root: SubTierFullNode,
-  opts?: { coverageTarget?: number; exposureLabel?: string },
+  opts?: { coverageTarget?: number; exposureLabel?: string; exposureFloor?: number },
 ): PriorityResult {
   const coverageTarget = opts?.coverageTarget ?? DEFAULT_COVERAGE;
   const exposureLabel = opts?.exposureLabel ?? 'revenue at risk';
+  const exposureFloor = opts?.exposureFloor ?? MIN_MEANINGFUL_EXPOSURE;
 
   const allNodes = flattenNetwork(root).filter(n => n.tier > 0);
   const totalSupplierCount = allNodes.length;
 
-  // Split by revenue floor
+  // Insufficient data (null exposure) is NOT $0 — it is unknown. Exclude from the
+  // Pareto/map entirely; it still appears in the full "see all" table as n/a.
+  const insufficientDataCount = allNodes.filter(n => n.revenueAtRisk === null).length;
+
+  // Eligible = KNOWN exposure at or above the floor.
   const eligible = allNodes.filter(
-    n => n.revenueAtRisk !== null && n.revenueAtRisk >= MIN_MEANINGFUL_REVENUE,
+    n => n.revenueAtRisk !== null && n.revenueAtRisk >= exposureFloor,
   );
-  const belowFloorCount = totalSupplierCount - eligible.length;
+  // Below floor = KNOWN exposure but under the floor (distinct from unknown/insufficient).
+  const belowFloorCount = allNodes.filter(
+    n => n.revenueAtRisk !== null && n.revenueAtRisk < exposureFloor,
+  ).length;
 
   const totalNetworkRevenue = eligible.reduce((s, n) => s + (n.revenueAtRisk ?? 0), 0);
 
@@ -100,14 +110,17 @@ export function selectPrioritySuppliers(
       : 0;
 
   const pct = Math.round(coverageAchieved * 100);
+  const tail = insufficientDataCount > 0
+    ? `${insufficientDataCount} suppliers excluded for insufficient data (in full table)`
+    : `${belowFloorCount} low-exposure suppliers in the full table`;
   const caption =
-    `Showing ${prioritySet.length} suppliers covering ${pct}% of ${exposureLabel}` +
-    ` — ${belowFloorCount} low-exposure suppliers in the full table.`;
+    `Showing ${prioritySet.length} of ${totalSupplierCount} suppliers covering ${pct}% of ${exposureLabel} — ${tail}.`;
 
   return {
     prioritySet,
     totalSupplierCount,
     belowFloorCount,
+    insufficientDataCount,
     totalNetworkRevenue,
     coverageAchieved,
     caption,
