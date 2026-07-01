@@ -9,7 +9,7 @@ interface Props {
   onSelect: (a: Anomaly) => void;
 }
 
-type SortKey = 'strength' | 'score' | 'delta' | 'revenue' | 'tier';
+type SortKey = 'strength' | 'score' | 'delta' | 'exposure' | 'tier';
 type SortDir = 'asc' | 'desc';
 
 const IMPACT_PILL: Record<string, string> = {
@@ -29,15 +29,21 @@ export default function RankedExceptionFeed({ anomalies, onSelect }: Props) {
     if (impactFilter !== 'all') list = list.filter(a => a.impactBucket === impactFilter);
     if (tierFilter !== 'all') list = list.filter(a => a.tier === Number(tierFilter));
 
-    return [...list].sort((a, b) => {
+    // Insufficient-data anomalies (no priced cost exposure) can't be ranked by
+    // exposure — keep them, but always sort them below the priced/ranked ones.
+    const priced = list.filter(a => a.costExposureUsd !== null);
+    const unpriced = list.filter(a => a.costExposureUsd === null);
+
+    priced.sort((a, b) => {
       let cmp = 0;
-      if (sortKey === 'strength') cmp = anomalyStrength(a) - anomalyStrength(b);
+      if (sortKey === 'strength') cmp = (anomalyStrength(a) ?? 0) - (anomalyStrength(b) ?? 0);
       else if (sortKey === 'score') cmp = a.scoreAfter - b.scoreAfter;
       else if (sortKey === 'delta') cmp = (a.scoreAfter - a.scoreBaseline) - (b.scoreAfter - b.scoreBaseline);
-      else if (sortKey === 'revenue') cmp = a.revenueAtRiskUsd - b.revenueAtRiskUsd;
+      else if (sortKey === 'exposure') cmp = (a.costExposureUsd ?? 0) - (b.costExposureUsd ?? 0);
       else if (sortKey === 'tier') cmp = a.tier - b.tier;
       return sortDir === 'asc' ? cmp : -cmp;
     });
+    return [...priced, ...unpriced];
   }, [anomalies, sortKey, sortDir, impactFilter, tierFilter]);
 
   const toggleSort = (k: SortKey) => {
@@ -51,20 +57,24 @@ export default function RankedExceptionFeed({ anomalies, onSelect }: Props) {
       : <ChevronDown size={12} className="inline opacity-20" />;
 
   const exportCSV = () => {
-    const header = ['Rank', 'Supplier', 'Tier', 'Lens', 'Impact', 'Score', 'Delta', 'Revenue at Risk ($)', 'Break Date', 'Verified', 'Status'];
-    const data = rows.map((a, i) => [
-      i + 1,
-      a.supplierName,
-      `T${a.tier}`,
-      a.lensLabel,
-      a.impactBucket,
-      a.scoreAfter,
-      a.scoreAfter - a.scoreBaseline,
-      a.revenueAtRiskUsd,
-      a.breakDate,
-      a.verified ? 'Yes' : 'No',
-      a.status,
-    ]);
+    const header = ['Rank', 'Supplier', 'Tier', 'Lens', 'Impact', 'Score', 'Delta', 'Cost Exposure ($)', 'Strength', 'Break Date', 'Verified', 'Status'];
+    const data = rows.map((a, i) => {
+      const st = anomalyStrength(a);
+      return [
+        i + 1,
+        a.supplierName,
+        `T${a.tier}`,
+        a.lensLabel,
+        a.impactBucket,
+        a.scoreAfter,
+        a.scoreAfter - a.scoreBaseline,
+        a.costExposureUsd ?? 'insufficient data',
+        st === null ? 'n/a' : Math.round(st),
+        a.breakDate,
+        a.verified ? 'Yes' : 'No',
+        a.status,
+      ];
+    });
     const csv = [header, ...data].map(r => r.join(',')).join('\n');
     const url = URL.createObjectURL(new Blob([csv], { type: 'text/csv' }));
     const el = document.createElement('a');
@@ -78,7 +88,7 @@ export default function RankedExceptionFeed({ anomalies, onSelect }: Props) {
       <div className="flex items-center justify-between px-5 py-3 border-b border-gray-100">
         <div>
           <h3 className="text-sm font-semibold text-gray-900">Ranked Exception Feed</h3>
-          <p className="text-xs text-gray-400">Ranked by anomaly strength × revenue exposure</p>
+          <p className="text-xs text-gray-400">Ranked by anomaly strength × annual cost exposure · insufficient-data suppliers sorted last</p>
         </div>
         <button
           onClick={exportCSV}
@@ -132,8 +142,8 @@ export default function RankedExceptionFeed({ anomalies, onSelect }: Props) {
               >Δ Score <SortIcon k="delta" /></th>
               <th
                 className="px-4 py-2.5 text-left text-xs font-semibold text-gray-500 cursor-pointer hover:text-gray-800 select-none"
-                onClick={() => toggleSort('revenue')}
-              >Revenue at Risk <SortIcon k="revenue" /></th>
+                onClick={() => toggleSort('exposure')}
+              >Cost Exposure <SortIcon k="exposure" /></th>
               <th
                 className="px-4 py-2.5 text-left text-xs font-semibold text-gray-500 cursor-pointer hover:text-gray-800 select-none"
                 onClick={() => toggleSort('strength')}
@@ -173,18 +183,24 @@ export default function RankedExceptionFeed({ anomalies, onSelect }: Props) {
                     <span className="text-xs font-semibold text-red-600 tabular-nums">▲ {delta}</span>
                   </td>
                   <td className="px-4 py-2.5 text-sm font-medium text-gray-900 tabular-nums">
-                    {formatRevenueAtRisk(a.revenueAtRiskUsd)}
+                    {a.costExposureUsd !== null
+                      ? formatRevenueAtRisk(a.costExposureUsd)
+                      : <span className="text-xs italic text-gray-400">exposure n/a</span>}
                   </td>
                   <td className="px-4 py-2.5">
-                    <div className="flex items-center gap-1.5">
-                      <div className="flex-1 bg-gray-100 rounded-full h-1.5" style={{ maxWidth: 60 }}>
-                        <div
-                          className="bg-red-400 h-1.5 rounded-full"
-                          style={{ width: `${Math.min(100, (strength / 500) * 100)}%` }}
-                        />
+                    {strength === null ? (
+                      <span className="text-xs italic text-gray-400">n/a</span>
+                    ) : (
+                      <div className="flex items-center gap-1.5">
+                        <div className="flex-1 bg-gray-100 rounded-full h-1.5" style={{ maxWidth: 60 }}>
+                          <div
+                            className="bg-red-400 h-1.5 rounded-full"
+                            style={{ width: `${Math.min(100, (strength / 500) * 100)}%` }}
+                          />
+                        </div>
+                        <span className="text-xs text-gray-500 tabular-nums">{Math.round(strength)}</span>
                       </div>
-                      <span className="text-xs text-gray-500 tabular-nums">{Math.round(strength)}</span>
-                    </div>
+                    )}
                   </td>
                   <td className="px-4 py-2.5 text-xs text-gray-500">{a.breakDate || '—'}</td>
                   <td className="px-4 py-2.5">

@@ -33,6 +33,7 @@ export interface Anomaly {
   lensLabel: string;
   impactBucket: ImpactBucket;
   revenueAtRiskUsd: number;
+  costExposureUsd: number | null;  // annual cost exposure (col O). null = insufficient data → ranked below priced anomalies
 
   scoreBaseline: number;    // score before breakout
   scoreAfter: number;       // displayed score (post-breakout)
@@ -115,6 +116,7 @@ export const ANOMALIES: Anomaly[] = [
     lensLabel: 'Geopolitical',
     impactBucket: 'delivery',
     revenueAtRiskUsd: 25_000_000,
+    costExposureUsd: 25_000_000,
     scoreBaseline: 58,
     scoreAfter: 72,
     breakDate: isoDate(8),
@@ -148,6 +150,7 @@ export const ANOMALIES: Anomaly[] = [
     lensLabel: 'ESG / Regulatory',
     impactBucket: 'compliance',
     revenueAtRiskUsd: 15_000_000,
+    costExposureUsd: 15_000_000,
     scoreBaseline: 64,
     scoreAfter: 82,
     breakDate: isoDate(5),
@@ -181,6 +184,7 @@ export const ANOMALIES: Anomaly[] = [
     lensLabel: 'Environmental / Climate',
     impactBucket: 'delivery',
     revenueAtRiskUsd: 10_000_000,
+    costExposureUsd: 10_000_000,
     scoreBaseline: 61,
     scoreAfter: 76,
     breakDate: isoDate(14),
@@ -223,6 +227,7 @@ export const ANOMALIES: Anomaly[] = [
     lensLabel: 'Geopolitical',
     impactBucket: 'cost',
     revenueAtRiskUsd: 2_500_000,
+    costExposureUsd: 2_500_000,
     scoreBaseline: 54,
     scoreAfter: 68,
     breakDate: isoDate(6),
@@ -255,6 +260,7 @@ export const ANOMALIES: Anomaly[] = [
     lensLabel: 'Logistics & Transport',
     impactBucket: 'delivery',
     revenueAtRiskUsd: 2_000_000,
+    costExposureUsd: null,
     scoreBaseline: 58,
     scoreAfter: 74,
     breakDate: isoDate(11),
@@ -287,6 +293,7 @@ export const ANOMALIES: Anomaly[] = [
     lensLabel: 'Labor & Social',
     impactBucket: 'compliance',
     revenueAtRiskUsd: 8_000_000,
+    costExposureUsd: 8_000_000,
     scoreBaseline: 60,
     scoreAfter: 71,
     breakDate: isoDate(22),
@@ -320,6 +327,7 @@ export const ANOMALIES: Anomaly[] = [
     lensLabel: 'Economic / Financial',
     impactBucket: 'cost',
     revenueAtRiskUsd: 3_000_000,
+    costExposureUsd: 3_000_000,
     scoreBaseline: 28,
     scoreAfter: 28,
     breakDate: '',
@@ -342,8 +350,11 @@ export const ANOMALIES: Anomaly[] = [
   },
 ];
 
-// Anomaly strength score for ranking: (scoreDelta × revenueAtRiskUsd)
-export function anomalyStrength(a: Anomaly): number {
+// Anomaly strength score for ranking: (scoreDelta × cost exposure in $M).
+// Returns null when the supplier has no priced cost exposure (insufficient data) —
+// such anomalies are still shown but cannot be ranked, so they sort below priced ones.
+export function anomalyStrength(a: Anomaly): number | null {
+  if (a.costExposureUsd === null) return null;
   const delta = a.scoreAfter - a.scoreBaseline;
-  return delta * (a.revenueAtRiskUsd / 1_000_000);
+  return delta * (a.costExposureUsd / 1_000_000);
 }
