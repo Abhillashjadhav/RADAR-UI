@@ -6,6 +6,7 @@ import SupplierDetail from './components/SupplierDetail/SupplierDetail';
 import TeamsCardPreview from './components/Signal/TeamsCardPreview';
 import SignalsHub from './components/Signal/SignalsHub';
 import NetworkView from './components/NetworkView/NetworkView';
+import { QSC_LIVE_NETWORK } from './data/liveNetworkData';
 
 function App() {
   return (
@@ -42,6 +43,19 @@ function App() {
           element={
             <Layout showAlertFeed={false}>
               <NetworkView />
+            </Layout>
+          }
+        />
+        <Route
+          path="/network-live"
+          element={
+            <Layout showAlertFeed={false}>
+              <NetworkView
+                root={QSC_LIVE_NETWORK}
+                title="QSC Sub-Tier Network"
+                subtitle="QSC Aerospace · live customer BOM · 792 parts → 132 tier-1 suppliers"
+                dataSource="live"
+              />
             </Layout>
           }
         />

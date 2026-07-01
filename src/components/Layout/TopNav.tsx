@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect } from 'react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
-import { Search, User, Map, LayoutDashboard, Bell, Network } from 'lucide-react';
+import { Search, User, Map, LayoutDashboard, Bell, Network, Database } from 'lucide-react';
 import { searchSuppliers } from '../../data/mockData';
 import type { Supplier } from '../../types';
 import { getCountryFlag } from '../../types';
@@ -84,13 +84,25 @@ export default function TopNav() {
           <Link
             to="/network"
             className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
-              isActive('/network')
+              location.pathname === '/network'
                 ? 'bg-blue-50 text-blue-800'
                 : 'text-gray-600 hover:bg-gray-100'
             }`}
           >
             <Network size={18} />
             Network
+          </Link>
+          <Link
+            to="/network-live"
+            className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
+              location.pathname === '/network-live'
+                ? 'bg-green-50 text-green-700'
+                : 'text-gray-600 hover:bg-gray-100'
+            }`}
+          >
+            <Database size={18} />
+            QSC Live
+            <span className="w-1.5 h-1.5 rounded-full bg-green-500" />
           </Link>
           <Link
             to="/signals"

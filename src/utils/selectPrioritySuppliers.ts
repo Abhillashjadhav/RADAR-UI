@@ -41,9 +41,10 @@ export interface PriorityResult {
 // ---------------------------------------------------------------------------
 export function selectPrioritySuppliers(
   root: SubTierFullNode,
-  opts?: { coverageTarget?: number },
+  opts?: { coverageTarget?: number; exposureLabel?: string },
 ): PriorityResult {
   const coverageTarget = opts?.coverageTarget ?? DEFAULT_COVERAGE;
+  const exposureLabel = opts?.exposureLabel ?? 'revenue at risk';
 
   const allNodes = flattenNetwork(root).filter(n => n.tier > 0);
   const totalSupplierCount = allNodes.length;
@@ -100,7 +101,7 @@ export function selectPrioritySuppliers(
 
   const pct = Math.round(coverageAchieved * 100);
   const caption =
-    `Showing ${prioritySet.length} suppliers covering ${pct}% of revenue at risk` +
+    `Showing ${prioritySet.length} suppliers covering ${pct}% of ${exposureLabel}` +
     ` — ${belowFloorCount} low-exposure suppliers in the full table.`;
 
   return {

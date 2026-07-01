@@ -393,8 +393,9 @@ function NetworkMapSVG({
   return (
     <svg
       viewBox={`0 0 ${w} ${h}`}
-      width="100%"
-      style={{ minHeight: 320, maxHeight: 520 }}
+      width={w}
+      height={h}
+      style={{ minHeight: 320, maxWidth: 'none' }}
       className="overflow-visible"
     >
       {/* Tier row labels */}
@@ -556,16 +557,38 @@ function NetworkMapSVG({
 // ---------------------------------------------------------------------------
 // Main NetworkView
 // ---------------------------------------------------------------------------
-export default function NetworkView() {
+interface NetworkViewProps {
+  /** Root of the network tree to analyze. Defaults to the synthetic demo network. */
+  root?: SubTierFullNode;
+  /** Page title. */
+  title?: string;
+  /** Subtitle line under the title. */
+  subtitle?: string;
+  /** 'live' shows the derived-exposure disclaimer; 'mock' is the synthetic demo. */
+  dataSource?: 'mock' | 'live';
+}
+
+export default function NetworkView({
+  root = LARGE_NETWORK,
+  title = 'Sub-Tier Network',
+  subtitle,
+  dataSource = 'mock',
+}: NetworkViewProps = {}) {
   const [analyzed, setAnalyzed] = useState(false);
   const [coverageTarget, setCoverageTarget] = useState<number>(COVERAGE_80);
   const [selectedNodeId, setSelectedNodeId] = useState<string | null>(null);
   const [expandedBadges, setExpandedBadges] = useState<Set<string>>(new Set());
   const [showModal, setShowModal] = useState(false);
 
+  const isLive = dataSource === 'live';
+  const exposureWord = isLive ? 'exposure' : 'revenue at risk';
+
   const result = useMemo(
-    () => selectPrioritySuppliers(LARGE_NETWORK, { coverageTarget }),
-    [coverageTarget],
+    () => selectPrioritySuppliers(root, {
+      coverageTarget,
+      exposureLabel: dataSource === 'live' ? 'exposure' : 'revenue at risk',
+    }),
+    [root, coverageTarget, dataSource],
   );
 
   const {
@@ -584,9 +607,9 @@ export default function NetworkView() {
   const priorityIds = useMemo(() => new Set(priorityMap.keys()), [priorityMap]);
 
   // Build parent map and node index once
-  const allNodes = useMemo(() => flattenNetwork(LARGE_NETWORK), []);
+  const allNodes = useMemo(() => flattenNetwork(root), [root]);
   const nodeById = useMemo(() => new Map(allNodes.map(n => [n.id, n])), [allNodes]);
-  const parentMap = useMemo(() => buildParentMap(LARGE_NETWORK), []);
+  const parentMap = useMemo(() => buildParentMap(root), [root]);
 
   const selectedPriority = useMemo(
     () => (selectedNodeId ? priorityMap.get(selectedNodeId) ?? null : null),
@@ -619,9 +642,20 @@ export default function NetworkView() {
       {/* Page header */}
       <div className="mb-6 flex items-start justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">Sub-Tier Network</h1>
+          <div className="flex items-center gap-2">
+            <h1 className="text-2xl font-bold text-gray-900">{title}</h1>
+            {isLive ? (
+              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wide bg-green-100 text-green-700">
+                <span className="w-1.5 h-1.5 rounded-full bg-green-500 animate-pulse" />Live data
+              </span>
+            ) : (
+              <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wide bg-gray-100 text-gray-500">
+                Demo data
+              </span>
+            )}
+          </div>
           <p className="text-sm text-gray-500 mt-1">
-            QSC Aerospace · PCB Assembly · T0–T5 · {totalSupplierCount} suppliers
+            {subtitle ?? `QSC Aerospace · PCB Assembly · T0–T5 · ${totalSupplierCount} suppliers`}
           </p>
         </div>
         {!analyzed ? (
@@ -646,9 +680,9 @@ export default function NetworkView() {
         <div className="bg-gray-50 border border-gray-200 rounded-xl p-10 text-center text-gray-400">
           <p className="text-lg font-medium mb-2">Ready to analyze</p>
           <p className="text-sm">
-            Click ANALYZE to surface the revenue-material suppliers across all {totalSupplierCount} in the network.
+            Click ANALYZE to surface the material suppliers across all {totalSupplierCount} in the network by {exposureWord}.
             <br />
-            Nodes below {formatRevenue(MIN_MEANINGFUL_REVENUE)} revenue are never shown on the map.
+            Nodes below the {formatRevenue(MIN_MEANINGFUL_REVENUE)} {exposureWord} floor are never shown on the map.
           </p>
         </div>
       )}
@@ -656,11 +690,23 @@ export default function NetworkView() {
       {/* Post-analyze */}
       {analyzed && (
         <>
+          {/* Live-data disclaimer */}
+          {isLive && (
+            <div className="bg-amber-50 border border-amber-200 rounded-xl px-4 py-2.5 mb-3 text-xs text-amber-800 flex items-start gap-2">
+              <Info size={14} className="flex-shrink-0 mt-0.5" />
+              <span>
+                Derived from the customer BOM file (792 parts). The sheet carries no revenue,
+                so <strong>“exposure” is a derived index</strong> (Impact Score × Where-Used), not dollars.
+                SPOF = single-sourced + high-impact; choke points = sub-tier entities shared across multiple tier-1 suppliers.
+              </span>
+            </div>
+          )}
+
           {/* Headline + controls */}
           <div className="bg-blue-50 border border-blue-100 rounded-xl px-5 py-4 mb-4">
             <p className="text-base font-semibold text-blue-900">
               {prioritySet.length} of {totalSupplierCount} suppliers need attention now
-              {' — '}covering <span className="text-blue-700">{pctCovered}%</span> of revenue at risk
+              {' — '}covering <span className="text-blue-700">{pctCovered}%</span> of {exposureWord}
             </p>
             <p className="text-xs text-blue-600 mt-1 flex items-center gap-2 flex-wrap">
               <span>{caption}</span>
@@ -684,7 +730,7 @@ export default function NetworkView() {
               </button>
             ))}
             <span className="text-xs text-gray-400">
-              → {prioritySet.length} surfaced, {belowFloorCount} below revenue floor
+              → {prioritySet.length} surfaced, {belowFloorCount} below {exposureWord} floor
             </span>
             <button
               onClick={() => setShowModal(true)}
@@ -698,9 +744,9 @@ export default function NetworkView() {
           {/* Map + side panel */}
           <div className="bg-white border border-gray-200 rounded-xl overflow-hidden flex">
             {/* SVG map */}
-            <div className="flex-1 p-4 overflow-x-auto">
+            <div className="flex-1 p-4 overflow-auto" style={{ maxHeight: 560 }}>
               <NetworkMapSVG
-                root={LARGE_NETWORK}
+                root={root}
                 priorityIds={priorityIds}
                 priorityMap={priorityMap}
                 selectedId={selectedNodeId}
@@ -748,7 +794,7 @@ export default function NetworkView() {
       {/* Full BOM modal */}
       {showModal && (
         <SubTierDetailModal
-          root={LARGE_NETWORK}
+          root={root}
           prioritySet={prioritySet}
           onClose={() => setShowModal(false)}
         />
