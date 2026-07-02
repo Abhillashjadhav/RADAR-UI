@@ -104,7 +104,7 @@ export default function RankedExceptionFeed({ anomalies, onSelect }: Props) {
           {(['all', 'delivery', 'compliance', 'cost'] as const).map(f => (
             <button key={f} onClick={() => setImpactFilter(f)}
               className={`px-2.5 py-1 text-xs font-medium rounded-md transition-colors ${
-                impactFilter === f ? 'bg-blue-800 text-white' : 'bg-white border border-gray-300 text-gray-600 hover:bg-gray-50'
+                impactFilter === f ? 'bg-amber-400 text-gray-900' : 'bg-white border border-gray-300 text-gray-600 hover:bg-gray-50'
               }`}>
               {f === 'all' ? 'All Impact' : f.charAt(0).toUpperCase() + f.slice(1)}
             </button>
@@ -114,7 +114,7 @@ export default function RankedExceptionFeed({ anomalies, onSelect }: Props) {
           {(['all', '1', '2'] as const).map(f => (
             <button key={f} onClick={() => setTierFilter(f)}
               className={`px-2.5 py-1 text-xs font-medium rounded-md transition-colors ${
-                tierFilter === f ? 'bg-blue-800 text-white' : 'bg-white border border-gray-300 text-gray-600 hover:bg-gray-50'
+                tierFilter === f ? 'bg-amber-400 text-gray-900' : 'bg-white border border-gray-300 text-gray-600 hover:bg-gray-50'
               }`}>
               {f === 'all' ? 'All Tiers' : `T${f}`}
             </button>
@@ -160,7 +160,7 @@ export default function RankedExceptionFeed({ anomalies, onSelect }: Props) {
               return (
                 <tr
                   key={a.id}
-                  className="hover:bg-blue-50 cursor-pointer transition-colors"
+                  className="hover:bg-amber-50 cursor-pointer transition-colors"
                   onClick={() => onSelect(a)}
                 >
                   <td className="px-4 py-2.5 text-xs text-gray-400 tabular-nums">{idx + 1}</td>

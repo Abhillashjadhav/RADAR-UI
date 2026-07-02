@@ -64,12 +64,12 @@ export default function AnomalyTrendChart({ anomaly, width = 600, height = 200 }
         style={{ minHeight: 140 }}
       >
         {/* Normal band */}
-        <path d={bandPath} fill="#DBEAFE" fillOpacity={0.6} />
-        <line x1={PAD.left} y1={bandTopY} x2={PAD.left + innerW} y2={bandTopY} stroke="#93C5FD" strokeWidth={1} strokeDasharray="3 2" />
-        <line x1={PAD.left} y1={bandBotY} x2={PAD.left + innerW} y2={bandBotY} stroke="#93C5FD" strokeWidth={1} strokeDasharray="3 2" />
+        <path d={bandPath} fill="#F3F4F6" fillOpacity={0.9} />
+        <line x1={PAD.left} y1={bandTopY} x2={PAD.left + innerW} y2={bandTopY} stroke="#D1D5DB" strokeWidth={1} strokeDasharray="3 2" />
+        <line x1={PAD.left} y1={bandBotY} x2={PAD.left + innerW} y2={bandBotY} stroke="#D1D5DB" strokeWidth={1} strokeDasharray="3 2" />
 
         {/* Band label */}
-        <text x={PAD.left + 4} y={bandTopY - 3} fontSize={8} fill="#3B82F6">normal band</text>
+        <text x={PAD.left + 4} y={bandTopY - 3} fontSize={8} fill="#9CA3AF">normal band</text>
 
         {/* Breakout vertical line */}
         {breakX !== null && (
@@ -80,7 +80,7 @@ export default function AnomalyTrendChart({ anomaly, width = 600, height = 200 }
         )}
 
         {/* Signal line */}
-        <path d={linePath} fill="none" stroke="#1D4ED8" strokeWidth={2} strokeLinejoin="round" />
+        <path d={linePath} fill="none" stroke="#1F2430" strokeWidth={2} strokeLinejoin="round" />
 
         {/* Data dots (only breakout region) */}
         {history.map((p, i) => {

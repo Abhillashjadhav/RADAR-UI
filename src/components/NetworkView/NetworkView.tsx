@@ -1,7 +1,7 @@
 import { useState, useMemo, useCallback } from 'react';
 import {
   AlertTriangle, GitMerge, Truck, ShieldCheck, DollarSign,
-  Info, ExternalLink, ChevronRight,
+  Info, ExternalLink, ChevronRight, ChevronDown, ZoomIn, ZoomOut,
 } from 'lucide-react';
 import { LARGE_NETWORK } from '../../data/largeNetworkGenerator';
 import type { SubTierFullNode } from '../../data/subtierMockData';
@@ -15,20 +15,21 @@ import type { PriorityNode } from '../../utils/selectPrioritySuppliers';
 import { buildParentMap, pathToRoot } from '../../utils/buildParentMap';
 import SubTierDetailModal from '../SupplierDetail/SubTierDetailModal';
 import { formatRevenue } from '../../types';
+import { TIER, CARD, GOLD_BTN, PILL_SELECT, SECTION_LABEL, severityOf, SEV, chip } from '../../theme/tokens';
 
 // ---------------------------------------------------------------------------
 // Constants
 // ---------------------------------------------------------------------------
 const IMPACT_CONFIG = {
-  Delivery:   { icon: Truck,       badge: 'bg-red-100 text-red-700',       border: 'border-red-400'    },
-  Compliance: { icon: ShieldCheck, badge: 'bg-orange-100 text-orange-700', border: 'border-orange-400' },
-  Cost:       { icon: DollarSign,  badge: 'bg-blue-100 text-blue-700',     border: 'border-blue-400'   },
+  Delivery:   { icon: Truck },
+  Compliance: { icon: ShieldCheck },
+  Cost:       { icon: DollarSign },
 } as const;
 
 const REASON_LABELS: Record<string, string> = {
   spof: 'SPOF',
   choke: 'Choke Point',
-  pareto: 'Top Revenue',
+  pareto: 'Top Exposure',
 };
 
 const COVERAGE_OPTIONS = [
@@ -37,15 +38,15 @@ const COVERAGE_OPTIONS = [
   { label: '90%', value: COVERAGE_90 },
 ] as const;
 
-// SVG layout constants
-const NODE_W = 160;
-const NODE_H = 60;
-const TIER_GAP_Y = 110;  // vertical distance between tier rows
-const NODE_GAP_X = 180;  // horizontal distance between nodes in same tier
-const PADDING_X = 40;
-const PADDING_Y = 40;
-const BADGE_W = 80;
-const BADGE_H = 32;
+type GraphFilter = 'critical' | 'high' | 'spof' | 'all';
+
+// SVG layout constants — circular nodes with label underneath
+const NODE_R = 17;
+const CELL_W = 118;          // horizontal cell per node (circle + label width)
+const TIER_GAP_Y = 128;
+const LABEL_H = 30;
+const PADDING_X = 48;
+const PADDING_Y = 44;
 
 // ---------------------------------------------------------------------------
 // Layout computation
@@ -53,15 +54,13 @@ const BADGE_H = 32;
 interface LayoutNode {
   id: string;
   node: SubTierFullNode | null; // null = collapsed badge
-  x: number;
-  y: number;
+  x: number;                    // circle centre x
+  y: number;                    // circle centre y
   tier: number;
   isPriority: boolean;
   priorityInfo?: PriorityNode;
-  collapsed?: boolean;   // this is a "+N more" badge
+  collapsed?: boolean;
   collapsedCount?: number;
-  collapsedParentId?: string;
-  // for edges
   parentIds: string[];
 }
 
@@ -69,164 +68,101 @@ function computeLayout(
   root: SubTierFullNode,
   priorityIds: Set<string>,
   priorityMap: Map<string, PriorityNode>,
-  expandedBadges: Set<string>,   // which collapsed badges have been expanded
+  expandedBadges: Set<string>,
 ): { nodes: LayoutNode[]; edges: { fromId: string; toId: string }[] } {
-  // Group priority nodes by tier
+  const all = flattenNetwork(root);
+  const nodeById = new Map(all.map(n => [n.id, n]));
+
+  // Group visible priority nodes by tier
   const byTier = new Map<number, SubTierFullNode[]>();
   for (const [id] of priorityMap) {
-    const all = flattenNetwork(root);
-    const n = all.find(x => x.id === id);
+    const n = nodeById.get(id);
     if (!n) continue;
     const list = byTier.get(n.tier) ?? [];
     list.push(n);
     byTier.set(n.tier, list);
   }
-  // Also always include root (tier 0)
   byTier.set(0, [root]);
 
-  const maxTier = Math.max(...[...byTier.keys()]);
+  // Sort each tier row by exposure desc for stable, readable order
+  for (const list of byTier.values()) {
+    list.sort((a, b) => (b.revenueAtRisk ?? 0) - (a.revenueAtRisk ?? 0));
+  }
 
-  // Compute x positions per tier (centre-aligned)
+  const maxTier = Math.max(...byTier.keys());
+  const widest = Math.max(...[...byTier.values()].map(l => l.length));
+  const fullWidth = Math.max(widest * CELL_W + PADDING_X * 2, 760);
+
   const layoutNodes: LayoutNode[] = [];
   const nodePos = new Map<string, { x: number; y: number }>();
   const edges: { fromId: string; toId: string }[] = [];
 
-  // Parent map for edge drawing
-  const parentMap = buildParentMap(root);
-
   for (let tier = 0; tier <= maxTier; tier++) {
-    const nodes = byTier.get(tier) ?? [];
-    if (nodes.length === 0) continue;
-    const totalW = nodes.length * NODE_W + (nodes.length - 1) * (NODE_GAP_X - NODE_W);
-    const startX = PADDING_X + Math.max(0, (800 - totalW) / 2); // rough centre in 800px
+    const list = byTier.get(tier) ?? [];
+    if (list.length === 0) continue;
+    const rowWidth = list.length * CELL_W;
+    const startX = (fullWidth - rowWidth) / 2 + CELL_W / 2;
     const y = PADDING_Y + tier * TIER_GAP_Y;
 
-    nodes.forEach((n, i) => {
-      const x = startX + i * NODE_GAP_X;
-      nodePos.set(n.id, { x, y });
+    list.forEach((n, i) => {
+      const x = startX + i * CELL_W;
       layoutNodes.push({
-        id: n.id,
-        node: n,
-        x,
-        y,
-        tier,
-        isPriority: priorityIds.has(n.id) || tier === 0,
+        id: n.id, node: n, x, y, tier: n.tier,
+        isPriority: priorityIds.has(n.id) || n.tier === 0,
         priorityInfo: priorityMap.get(n.id),
-        parentIds: parentMap.get(n.id) ?? [],
+        parentIds: [],
       });
+      nodePos.set(n.id, { x, y });
     });
   }
 
-  // Edges: connect priority nodes to their priority parents (or root)
+  // Edges between placed nodes + collapsed badges for hidden children
+  const placed = new Set(nodePos.keys());
   for (const ln of layoutNodes) {
-    if (ln.tier === 0) continue;
-    for (const parentId of ln.parentIds) {
-      if (nodePos.has(parentId)) {
-        edges.push({ fromId: parentId, toId: ln.id });
-      }
-    }
-    // If none of the parents are in priorityIds, connect to root
-    if (!ln.parentIds.some(pid => nodePos.has(pid)) && nodePos.has(root.id)) {
-      edges.push({ fromId: root.id, toId: ln.id });
-    }
-  }
-
-  // Add "+N more" collapse badges per priority node for their non-priority children
-  const allNodes = flattenNetwork(root);
-  const nodeById = new Map(allNodes.map(n => [n.id, n]));
-
-  for (const ln of [...layoutNodes]) {
     if (!ln.node) continue;
-    // Count non-priority children (direct only)
-    const nonPrioChildren = ln.node.children.filter(c => !priorityIds.has(c.id));
-    if (nonPrioChildren.length === 0) continue;
-
-    const badgeKey = `badge:${ln.id}`;
-    if (expandedBadges.has(badgeKey)) {
-      // Show expanded list (up to 5 for readability)
-      const show = nonPrioChildren.slice(0, 5);
-      const pos = nodePos.get(ln.id)!;
-      show.forEach((child, i) => {
-        const bx = pos.x + (i - (show.length - 1) / 2) * 90;
-        const by = pos.y + TIER_GAP_Y;
-        const bid = `expanded:${ln.id}:${child.id}`;
-        layoutNodes.push({
-          id: bid,
-          node: child,
-          x: bx,
-          y: by,
-          tier: child.tier,
-          isPriority: false,
-          parentIds: [ln.id],
-          collapsed: false,
+    const nonPrioChildren = ln.node.children.filter(c => !placed.has(c.id));
+    for (const child of ln.node.children) {
+      if (placed.has(child.id)) edges.push({ fromId: ln.id, toId: child.id });
+    }
+    if (nonPrioChildren.length > 0) {
+      const bid = `badge-${ln.id}`;
+      const expanded = expandedBadges.has(bid);
+      if (expanded) {
+        // Reveal up to 5 children as regular circles just below the parent
+        nonPrioChildren.slice(0, 5).forEach((child, i) => {
+          const bx = ln.x + (i - Math.min(nonPrioChildren.length, 5) / 2) * (CELL_W * 0.7) + CELL_W * 0.35;
+          const by = ln.y + TIER_GAP_Y * 0.82;
+          layoutNodes.push({
+            id: child.id, node: child, x: bx, y: by, tier: child.tier,
+            isPriority: false, parentIds: [ln.id],
+          });
+          nodePos.set(child.id, { x: bx, y: by });
+          edges.push({ fromId: ln.id, toId: child.id });
         });
-        nodePos.set(bid, { x: bx, y: by });
-        edges.push({ fromId: ln.id, toId: bid });
-      });
-      if (nonPrioChildren.length > 5) {
-        const bx = pos.x + (5 - (Math.min(nonPrioChildren.length, 5) - 1) / 2) * 90;
-        const by = pos.y + TIER_GAP_Y;
-        const bid = `badge:more:${ln.id}`;
         layoutNodes.push({
-          id: bid,
-          node: null,
-          x: bx,
-          y: by,
-          tier: ln.tier + 1,
-          isPriority: false,
-          collapsed: true,
-          collapsedCount: nonPrioChildren.length - 5,
-          collapsedParentId: ln.id,
-          parentIds: [ln.id],
+          id: bid, node: null, x: ln.x, y: ln.y + TIER_GAP_Y * 0.82 + 46, tier: ln.tier + 1,
+          isPriority: false, collapsed: true, collapsedCount: -1, parentIds: [ln.id],
         });
-        nodePos.set(bid, { x: bx, y: by });
-        edges.push({ fromId: ln.id, toId: bid });
-      }
-    } else {
-      // Show single collapse badge
-      const pos = nodePos.get(ln.id)!;
-      const bx = pos.x;
-      const by = pos.y + TIER_GAP_Y;
-      const bid = badgeKey;
-      if (!nodePos.has(bid)) {
+        nodePos.set(bid, { x: ln.x, y: ln.y + TIER_GAP_Y * 0.82 + 46 });
+      } else {
         layoutNodes.push({
-          id: bid,
-          node: null,
-          x: bx,
-          y: by,
-          tier: ln.tier + 1,
-          isPriority: false,
-          collapsed: true,
-          collapsedCount: nonPrioChildren.length,
-          collapsedParentId: ln.id,
-          parentIds: [ln.id],
+          id: bid, node: null, x: ln.x + CELL_W * 0.42, y: ln.y + TIER_GAP_Y * 0.55, tier: ln.tier + 1,
+          isPriority: false, collapsed: true, collapsedCount: nonPrioChildren.length, parentIds: [ln.id],
         });
-        nodePos.set(bid, { x: bx, y: by });
+        nodePos.set(bid, { x: ln.x + CELL_W * 0.42, y: ln.y + TIER_GAP_Y * 0.55 });
         edges.push({ fromId: ln.id, toId: bid });
       }
     }
-    // suppress unused variable warning
-    void nodeById;
   }
 
   return { nodes: layoutNodes, edges };
 }
 
-// Compute SVG viewBox dimensions from node positions
 function svgDims(nodes: LayoutNode[]) {
   if (nodes.length === 0) return { w: 900, h: 400 };
-  const maxX = Math.max(...nodes.map(n => n.x + NODE_W)) + PADDING_X;
-  const maxY = Math.max(...nodes.map(n => n.y + NODE_H)) + PADDING_Y;
-  return { w: Math.max(maxX, 900), h: Math.max(maxY, 300) };
-}
-
-// ---------------------------------------------------------------------------
-// Score color helpers
-// ---------------------------------------------------------------------------
-function scoreFill(score: number) {
-  if (score >= 70) return '#DC2626'; // red-600
-  if (score >= 40) return '#F59E0B'; // yellow-500
-  return '#10B981'; // green-500
+  const maxX = Math.max(...nodes.map(n => n.x)) + CELL_W / 2 + PADDING_X;
+  const maxY = Math.max(...nodes.map(n => n.y)) + NODE_R + LABEL_H + PADDING_Y;
+  return { w: Math.max(maxX, 760), h: Math.max(maxY, 300) };
 }
 
 // ---------------------------------------------------------------------------
@@ -238,7 +174,7 @@ function SelectionPopover({ floor, exposureLabel = 'revenue at risk' }: { floor:
     <span className="relative inline-block">
       <button
         onClick={() => setOpen(o => !o)}
-        className="inline-flex items-center gap-0.5 text-blue-700 hover:underline text-xs"
+        className="inline-flex items-center gap-0.5 text-amber-600 hover:underline text-xs font-medium"
         aria-expanded={open}
       >
         <Info size={12} /> Why these?
@@ -246,12 +182,12 @@ function SelectionPopover({ floor, exposureLabel = 'revenue at risk' }: { floor:
       {open && (
         <>
           <div className="fixed inset-0 z-10" onClick={() => setOpen(false)} />
-          <div className="absolute left-0 top-5 z-20 w-72 bg-white border border-gray-200 rounded-xl shadow-xl p-4">
+          <div className={`absolute left-0 top-5 z-20 w-72 ${CARD} p-4`}>
             <p className="text-xs font-semibold text-gray-700 mb-2">Selection logic</p>
             <ol className="space-y-1.5 text-xs text-gray-700">
-              <li><span className="font-semibold text-blue-600">Spine:</span> Pareto — smallest set covering selected % of total {exposureLabel}</li>
+              <li><span className="font-semibold text-amber-600">Spine:</span> Pareto — smallest set covering selected % of total {exposureLabel}</li>
               <li><span className="font-semibold text-red-600">+SPOF:</span> sole-source nodes added if {exposureLabel} ≥ {formatRevenue(floor)} and priced</li>
-              <li><span className="font-semibold text-orange-600">+Choke:</span> convergence nodes added if {exposureLabel} ≥ {formatRevenue(floor)} and priced</li>
+              <li><span className="font-semibold text-amber-700">+Choke:</span> convergence nodes added if {exposureLabel} ≥ {formatRevenue(floor)} and priced</li>
             </ol>
             <p className="text-xs text-gray-400 mt-3 pt-2 border-t border-gray-100">
               Nodes below {formatRevenue(floor)} {exposureLabel} — or with no priced parts — are never shown on the map; they live in the full table only.
@@ -267,10 +203,7 @@ function SelectionPopover({ floor, exposureLabel = 'revenue at risk' }: { floor:
 // Side panel for selected node
 // ---------------------------------------------------------------------------
 function NodeSidePanel({
-  priorityInfo,
-  pathNodes,
-  onClose,
-  exposureLabel = 'Revenue at Risk',
+  priorityInfo, pathNodes, onClose, exposureLabel = 'Revenue at Risk',
 }: {
   priorityInfo: PriorityNode;
   pathNodes: SubTierFullNode[];
@@ -278,19 +211,17 @@ function NodeSidePanel({
   exposureLabel?: string;
 }) {
   const { node, reasons, revenueShare } = priorityInfo;
-  const cfg = IMPACT_CONFIG[node.primaryImpact];
-  const Icon = cfg.icon;
+  const Icon = IMPACT_CONFIG[node.primaryImpact].icon;
+  const sev = SEV[severityOf(node.riskScore)];
 
   return (
-    <div className={`border-l-4 ${cfg.border.replace('border-', 'border-l-')} bg-white rounded-r-xl p-5 flex flex-col gap-4 h-full overflow-y-auto`}>
-      {/* Close */}
+    <div className="bg-white p-5 flex flex-col gap-4 h-full overflow-y-auto">
       <button onClick={onClose} className="self-end text-gray-400 hover:text-gray-600 text-xs">✕ close</button>
 
-      {/* Header */}
       <div>
-        <div className="flex items-center gap-2 flex-wrap mb-1">
-          <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium ${cfg.badge}`}>
-            <Icon size={11} />{node.primaryImpact}
+        <div className="flex items-center gap-2 flex-wrap mb-1.5">
+          <span className={chip(node.primaryImpact)}>
+            <Icon size={11} className="mr-1" />{node.primaryImpact}
           </span>
           {node.isSPOF && (
             <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-red-50 text-red-600">
@@ -298,7 +229,7 @@ function NodeSidePanel({
             </span>
           )}
           {node.isChokePoint && (
-            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-orange-50 text-orange-600">
+            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-red-50 text-red-500 border border-dashed border-red-300">
               <GitMerge size={11} />Choke Point
             </span>
           )}
@@ -307,10 +238,16 @@ function NodeSidePanel({
         <p className="text-xs text-gray-400">{node.location.city}, {node.location.country} · T{node.tier} · {node.commodity}</p>
       </div>
 
-      {/* Path from root */}
+      <div>
+        <p className={`${SECTION_LABEL} mb-1`}>Risk Score</p>
+        <span className={`inline-flex items-center justify-center px-3 h-8 rounded-lg text-sm font-bold tabular-nums ${sev.chip}`}>
+          {node.riskScore}
+        </span>
+      </div>
+
       {pathNodes.length > 1 && (
         <div>
-          <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1">Path from root</p>
+          <p className={`${SECTION_LABEL} mb-1`}>Path from root</p>
           <div className="flex items-center flex-wrap gap-1">
             {pathNodes.map((pn, i) => (
               <span key={pn.id} className="flex items-center gap-1">
@@ -322,17 +259,15 @@ function NodeSidePanel({
         </div>
       )}
 
-      {/* Risk factor */}
       <div>
-        <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1">Risk Factor</p>
-        <span className="inline-flex items-center px-2 py-1 rounded-lg bg-gray-100 text-xs font-medium text-gray-700">
+        <p className={`${SECTION_LABEL} mb-1`}>Risk Factor</p>
+        <span className="inline-flex items-center px-2 py-1 rounded-lg bg-gray-50 border border-gray-100 text-xs font-medium text-gray-700">
           {node.topRiskLens} — {node.topRiskLensLabel}
         </span>
       </div>
 
-      {/* Exposure */}
       <div>
-        <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1">
+        <p className={`${SECTION_LABEL} mb-1`}>
           {exposureLabel}
           {node.costEstimated && (
             <span className="ml-1.5 inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-semibold bg-amber-100 text-amber-700 normal-case tracking-normal">
@@ -346,21 +281,19 @@ function NodeSidePanel({
         <p className="text-xs text-gray-400">{(revenueShare * 100).toFixed(1)}% of network total</p>
       </div>
 
-      {/* Why surfaced */}
       <div>
-        <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1">Why surfaced</p>
+        <p className={`${SECTION_LABEL} mb-1`}>Why surfaced</p>
         <div className="flex flex-wrap gap-1">
           {reasons.map(r => (
-            <span key={r} className="px-2 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-600">
+            <span key={r} className="px-2 py-0.5 rounded-full text-xs font-medium bg-amber-50 text-amber-700 border border-amber-200">
               {REASON_LABELS[r]}
             </span>
           ))}
         </div>
       </div>
 
-      {/* Action */}
       <div>
-        <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1">Recommended Action</p>
+        <p className={`${SECTION_LABEL} mb-1`}>Recommended Action</p>
         <p className="text-xs text-gray-700 leading-relaxed">{node.action}</p>
       </div>
     </div>
@@ -368,71 +301,84 @@ function NodeSidePanel({
 }
 
 // ---------------------------------------------------------------------------
-// SVG Map
+// Tier legend card (top-right)
+// ---------------------------------------------------------------------------
+function TierLegend() {
+  return (
+    <div className={`${CARD} p-3 w-44`}>
+      <p className={`${SECTION_LABEL} mb-2`}>Legend</p>
+      <ul className="space-y-1.5">
+        {([0, 1, 2, 3, 4, 5] as const).map(t => (
+          <li key={t} className="flex items-center gap-2 text-[11px] text-gray-600">
+            <span className="w-3 h-3 rounded-full flex-shrink-0" style={{ background: TIER[t].hex }} />
+            <span className="font-medium text-gray-700">T{t}</span> {TIER[t].label}
+          </li>
+        ))}
+        <li className="flex items-center gap-2 text-[11px] text-gray-600 pt-1 border-t border-gray-100">
+          <span className="w-3 h-3 rounded-full flex-shrink-0 border-2 border-dashed border-red-500" />
+          Choke point
+        </li>
+        <li className="flex items-center gap-2 text-[11px] text-gray-600">
+          <svg width="12" height="12" viewBox="0 0 12 12" className="flex-shrink-0"><path d="M6 1 L11 10 H1 Z" fill="#DC2626" /></svg>
+          SPOF
+        </li>
+      </ul>
+    </div>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// SVG map — circular tier-colored nodes, smooth curved edges
 // ---------------------------------------------------------------------------
 function NetworkMapSVG({
-  root,
-  priorityIds,
-  priorityMap,
-  selectedId,
-  onSelectNode,
-  expandedBadges,
-  onToggleBadge,
+  root, priorityIds, priorityMap, selectedId, onSelectNode, expandedBadges, onToggleBadge, zoom,
 }: {
   root: SubTierFullNode;
   priorityIds: Set<string>;
   priorityMap: Map<string, PriorityNode>;
   selectedId: string | null;
-  onSelectNode: (id: string) => void;
+  onSelectNode: (id: string | null) => void;
   expandedBadges: Set<string>;
-  onToggleBadge: (badgeId: string, parentId: string) => void;
+  onToggleBadge: (badgeId: string) => void;
+  zoom: number;
 }) {
   const { nodes, edges } = useMemo(
     () => computeLayout(root, priorityIds, priorityMap, expandedBadges),
     [root, priorityIds, priorityMap, expandedBadges],
   );
-
   const { w, h } = svgDims(nodes);
-  const nodePos = useMemo(() => {
-    const m = new Map<string, { x: number; y: number }>();
-    nodes.forEach(n => m.set(n.id, { x: n.x, y: n.y }));
-    return m;
-  }, [nodes]);
+  const pos = useMemo(() => new Map(nodes.map(n => [n.id, n])), [nodes]);
 
   return (
     <svg
       viewBox={`0 0 ${w} ${h}`}
-      width={w}
-      height={h}
+      width={w * zoom}
+      height={h * zoom}
       style={{ minHeight: 320, maxWidth: 'none' }}
       className="overflow-visible"
     >
       {/* Tier row labels */}
       {[0, 1, 2, 3, 4, 5].map(tier => {
-        const hasNodes = nodes.some(n => n.tier === tier);
-        if (!hasNodes) return null;
-        const y = PADDING_Y + tier * TIER_GAP_Y + NODE_H / 2;
+        const has = nodes.some(n => n.tier === tier && !n.collapsed);
+        if (!has) return null;
         return (
-          <text key={tier} x={8} y={y} className="text-xs" fontSize={10} fill="#9CA3AF" dominantBaseline="middle">
+          <text key={tier} x={10} y={PADDING_Y + tier * TIER_GAP_Y + 4}
+            className="fill-gray-300" fontSize={11} fontWeight={700}>
             T{tier}
           </text>
         );
       })}
 
-      {/* Edges */}
-      {edges.map((e, i) => {
-        const from = nodePos.get(e.fromId);
-        const to = nodePos.get(e.toId);
-        if (!from || !to) return null;
-        const x1 = from.x + NODE_W / 2;
-        const y1 = from.y + NODE_H;
-        const x2 = to.x + (to === nodePos.get(e.toId) ? NODE_W / 2 : BADGE_W / 2);
-        const y2 = to.y;
-        const midY = (y1 + y2) / 2;
+      {/* Curved edges */}
+      {edges.map(({ fromId, toId }) => {
+        const a = pos.get(fromId); const b = pos.get(toId);
+        if (!a || !b) return null;
+        const y0 = a.y + NODE_R, y1 = b.y - NODE_R;
+        const my = (y0 + y1) / 2;
         return (
           <path
-            key={i}
-            d={`M ${x1} ${y1} C ${x1} ${midY}, ${x2} ${midY}, ${x2} ${y2}`}
+            key={`${fromId}-${toId}`}
+            d={`M ${a.x} ${y0} C ${a.x} ${my}, ${b.x} ${my}, ${b.x} ${y1}`}
             fill="none"
             stroke="#E5E7EB"
             strokeWidth={1.5}
@@ -443,119 +389,55 @@ function NetworkMapSVG({
       {/* Nodes */}
       {nodes.map(ln => {
         if (ln.collapsed) {
-          // "+N more" badge
-          const bId = ln.id;
-          const count = ln.collapsedCount ?? 0;
+          if (ln.collapsedCount === -1) return null; // expanded marker, nothing to draw
           return (
-            <g
-              key={bId}
-              transform={`translate(${ln.x}, ${ln.y})`}
-              style={{ cursor: 'pointer' }}
-              onClick={() => ln.collapsedParentId && onToggleBadge(bId, ln.collapsedParentId)}
-            >
-              <rect
-                width={BADGE_W}
-                height={BADGE_H}
-                rx={8}
-                fill="#F9FAFB"
-                stroke="#E5E7EB"
-                strokeWidth={1}
-                strokeDasharray="4 2"
-              />
-              <text x={BADGE_W / 2} y={BADGE_H / 2} textAnchor="middle" dominantBaseline="middle" fontSize={11} fill="#6B7280" fontWeight={500}>
-                +{count} more
+            <g key={ln.id} onClick={() => onToggleBadge(ln.id)} className="cursor-pointer">
+              <circle cx={ln.x} cy={ln.y} r={14} fill="white" stroke="#D1D5DB" strokeDasharray="3 3" strokeWidth={1.5} />
+              <text x={ln.x} y={ln.y + 3.5} textAnchor="middle" fontSize={9.5} fontWeight={700} className="fill-gray-400 select-none">
+                +{ln.collapsedCount}
               </text>
             </g>
           );
         }
-
-        if (!ln.node) return null;
-        const n = ln.node;
-        const isSelected = ln.id === selectedId || n.id === selectedId;
-        const pInfo = ln.priorityInfo ?? priorityMap.get(n.id);
+        const n = ln.node!;
         const isRoot = n.tier === 0;
-        const fill = isRoot ? '#1E40AF' : '#FFFFFF';
-        const stroke = isSelected ? '#2563EB' : (ln.isPriority ? '#6B7280' : '#E5E7EB');
-        const strokeW = isSelected ? 2.5 : 1.5;
+        const tierCfg = TIER[n.tier as keyof typeof TIER] ?? TIER[5];
+        const selected = selectedId === n.id;
+        const clickable = ln.isPriority && !isRoot && ln.priorityInfo;
 
         return (
           <g
             key={ln.id}
-            transform={`translate(${ln.x}, ${ln.y})`}
-            style={{ cursor: ln.isPriority && !isRoot ? 'pointer' : 'default' }}
-            onClick={() => ln.isPriority && !isRoot && onSelectNode(n.id)}
+            onClick={() => clickable && onSelectNode(selected ? null : n.id)}
+            className={clickable ? 'cursor-pointer' : undefined}
           >
-            {/* Card rect */}
-            <rect
-              width={NODE_W}
-              height={NODE_H}
-              rx={8}
-              fill={fill}
-              stroke={stroke}
-              strokeWidth={strokeW}
-              filter={isSelected ? 'drop-shadow(0 2px 6px rgba(37,99,235,0.25))' : undefined}
+            {/* selection halo */}
+            {selected && <circle cx={ln.x} cy={ln.y} r={NODE_R + 5} fill="none" stroke="#FBBF24" strokeWidth={3} />}
+            {/* choke = dashed red ring */}
+            {n.isChokePoint && (
+              <circle cx={ln.x} cy={ln.y} r={NODE_R + 3.5} fill="none" stroke="#EF4444" strokeWidth={1.5} strokeDasharray="4 3" />
+            )}
+            <circle
+              cx={ln.x} cy={ln.y} r={isRoot ? NODE_R + 4 : NODE_R}
+              fill={tierCfg.hex}
+              stroke="white" strokeWidth={2}
             />
-
-            {/* Left accent bar — impact color */}
-            {!isRoot && ln.isPriority && (
-              <rect
-                width={4}
-                height={NODE_H}
-                rx={2}
-                fill={
-                  n.primaryImpact === 'Delivery' ? '#F87171' :
-                  n.primaryImpact === 'Compliance' ? '#FB923C' :
-                  '#60A5FA'
-                }
-              />
-            )}
-
-            {/* Score circle */}
-            {!isRoot && (
-              <circle cx={22} cy={NODE_H / 2} r={14} fill={scoreFill(n.riskScore)} />
-            )}
-            {!isRoot && (
-              <text x={22} y={NODE_H / 2} textAnchor="middle" dominantBaseline="middle" fontSize={9} fill="#fff" fontWeight={700}>
-                {n.riskScore}
-              </text>
-            )}
-
-            {/* Root star */}
-            {isRoot && (
-              <text x={NODE_W / 2} y={NODE_H / 2} textAnchor="middle" dominantBaseline="middle" fontSize={14} fill="#fff">
-                ★
-              </text>
-            )}
-
-            {/* Name */}
-            <text
-              x={isRoot ? NODE_W / 2 : 42}
-              y={isRoot ? NODE_H / 2 - 8 : NODE_H / 2 - 8}
-              fontSize={isRoot ? 10 : 9}
-              fill={isRoot ? '#fff' : (ln.isPriority ? '#111827' : '#9CA3AF')}
-              fontWeight={ln.isPriority ? 600 : 400}
-              textAnchor={isRoot ? 'middle' : 'start'}
-            >
-              {n.name.length > 18 ? n.name.slice(0, 17) + '…' : n.name}
+            {/* score inside circle (root shows ★) */}
+            <text x={ln.x} y={ln.y + 4} textAnchor="middle" fontSize={isRoot ? 13 : 10.5} fontWeight={800} fill="white" className="select-none">
+              {isRoot ? '★' : n.riskScore}
             </text>
-
-            {/* Commodity / label row */}
-            {!isRoot && (
-              <text x={42} y={NODE_H / 2 + 7} fontSize={8} fill="#6B7280" textAnchor="start">
-                {n.commodity.length > 20 ? n.commodity.slice(0, 19) + '…' : n.commodity}
-              </text>
+            {/* SPOF = red triangle marker */}
+            {n.isSPOF && (
+              <path d={`M ${ln.x + NODE_R - 2} ${ln.y - NODE_R - 6} l 5 9 h -10 Z`} fill="#DC2626" />
             )}
-
-            {/* SPOF / choke icons */}
-            {n.isSPOF && <text x={NODE_W - 18} y={14} fontSize={10} fill="#DC2626">⚠</text>}
-            {n.isChokePoint && <text x={NODE_W - (n.isSPOF ? 32 : 18)} y={14} fontSize={10} fill="#EA580C">⊕</text>}
-
-            {/* Revenue (priority only) */}
-            {ln.isPriority && !isRoot && pInfo && n.revenueAtRisk !== null && (
-              <text x={42} y={NODE_H - 8} fontSize={7.5} fill="#6B7280" textAnchor="start" fontWeight={600}>
-                {formatRevenue(n.revenueAtRisk)}
-              </text>
-            )}
+            {/* label + city underneath */}
+            <text x={ln.x} y={ln.y + NODE_R + 12} textAnchor="middle" fontSize={9.5} fontWeight={700} className="fill-gray-700 select-none">
+              {n.name.length > 17 ? n.name.slice(0, 16) + '…' : n.name}
+            </text>
+            <text x={ln.x} y={ln.y + NODE_R + 22} textAnchor="middle" fontSize={8.5} className="fill-gray-400 select-none">
+              {n.location.city !== '—' ? n.location.city : n.commodity.slice(0, 14)}
+              {ln.priorityInfo && n.revenueAtRisk !== null ? ` · ${formatRevenue(n.revenueAtRisk)}` : ''}
+            </text>
           </g>
         );
       })}
@@ -564,16 +446,12 @@ function NetworkMapSVG({
 }
 
 // ---------------------------------------------------------------------------
-// Main NetworkView
+// NetworkView page
 // ---------------------------------------------------------------------------
 interface NetworkViewProps {
-  /** Root of the network tree to analyze. Defaults to the synthetic demo network. */
   root?: SubTierFullNode;
-  /** Page title. */
   title?: string;
-  /** Subtitle line under the title. */
   subtitle?: string;
-  /** 'live' shows the derived-exposure disclaimer; 'mock' is the synthetic demo. */
   dataSource?: 'mock' | 'live';
 }
 
@@ -588,6 +466,8 @@ export default function NetworkView({
   const [selectedNodeId, setSelectedNodeId] = useState<string | null>(null);
   const [expandedBadges, setExpandedBadges] = useState<Set<string>>(new Set());
   const [showModal, setShowModal] = useState(false);
+  const [graphFilter, setGraphFilter] = useState<GraphFilter>('all');
+  const [zoom, setZoom] = useState(1);
 
   const isLive = dataSource === 'live';
   const exposureWord = isLive ? 'cost exposure' : 'revenue at risk';
@@ -603,22 +483,23 @@ export default function NetworkView({
   );
 
   const {
-    prioritySet,
-    totalSupplierCount,
-    belowFloorCount,
-    insufficientDataCount,
-    coverageAchieved,
-    caption,
+    prioritySet, totalSupplierCount, belowFloorCount,
+    insufficientDataCount, coverageAchieved, caption,
   } = result;
 
-  const priorityMap = useMemo(
-    () => new Map(prioritySet.map(p => [p.node.id, p])),
-    [prioritySet],
-  );
+  // Graph filter narrows what is DRAWN, not what is selected
+  const visibleSet = useMemo(() => {
+    switch (graphFilter) {
+      case 'critical': return prioritySet.filter(p => p.node.riskScore >= 70);
+      case 'high':     return prioritySet.filter(p => p.node.riskScore >= 40);
+      case 'spof':     return prioritySet.filter(p => p.node.isSPOF);
+      default:         return prioritySet;
+    }
+  }, [prioritySet, graphFilter]);
 
+  const priorityMap = useMemo(() => new Map(visibleSet.map(p => [p.node.id, p])), [visibleSet]);
   const priorityIds = useMemo(() => new Set(priorityMap.keys()), [priorityMap]);
 
-  // Build parent map and node index once
   const allNodes = useMemo(() => flattenNetwork(root), [root]);
   const nodeById = useMemo(() => new Map(allNodes.map(n => [n.id, n])), [allNodes]);
   const parentMap = useMemo(() => buildParentMap(root), [root]);
@@ -627,13 +508,12 @@ export default function NetworkView({
     () => (selectedNodeId ? priorityMap.get(selectedNodeId) ?? null : null),
     [selectedNodeId, priorityMap],
   );
-
   const selectedPath = useMemo(
     () => selectedNodeId ? pathToRoot(selectedNodeId, parentMap, nodeById) : [],
     [selectedNodeId, parentMap, nodeById],
   );
 
-  const handleToggleBadge = useCallback((badgeId: string, _parentId: string) => {
+  const handleToggleBadge = useCallback((badgeId: string) => {
     setExpandedBadges(prev => {
       const next = new Set(prev);
       if (next.has(badgeId)) next.delete(badgeId);
@@ -642,20 +522,22 @@ export default function NetworkView({
     });
   }, []);
 
-  const handleCoverageChange = (v: number) => {
-    setCoverageTarget(v);
-    setSelectedNodeId(null);
-  };
-
   const pctCovered = Math.round(coverageAchieved * 100);
+
+  const FILTER_PILLS: { key: GraphFilter; label: string }[] = [
+    { key: 'critical', label: 'Critical' },
+    { key: 'high', label: 'High Risk' },
+    { key: 'spof', label: 'SPOFs' },
+    { key: 'all', label: 'Show All' },
+  ];
 
   return (
     <div className="p-6 max-w-screen-xl mx-auto">
-      {/* Page header */}
-      <div className="mb-6 flex items-start justify-between">
+      {/* Title row: pill selectors + gold ANALYZE */}
+      <div className="mb-5 flex items-start justify-between gap-4 flex-wrap">
         <div>
           <div className="flex items-center gap-2">
-            <h1 className="text-2xl font-bold text-gray-900">{title}</h1>
+            <h1 className="text-2xl font-extrabold text-gray-900 tracking-tight">{title}</h1>
             {isLive ? (
               <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wide bg-green-100 text-green-700">
                 <span className="w-1.5 h-1.5 rounded-full bg-green-500 animate-pulse" />Live data
@@ -670,27 +552,27 @@ export default function NetworkView({
             {subtitle ?? `QSC Aerospace · PCB Assembly · T0–T5 · ${totalSupplierCount} suppliers`}
           </p>
         </div>
-        {!analyzed ? (
-          <button
-            onClick={() => setAnalyzed(true)}
-            className="px-6 py-2.5 bg-blue-800 text-white text-sm font-semibold rounded-lg hover:bg-blue-700 transition-colors shadow-sm"
-          >
-            ANALYZE
-          </button>
-        ) : (
-          <button
-            onClick={() => { setAnalyzed(false); setSelectedNodeId(null); }}
-            className="text-xs text-gray-400 hover:text-gray-600 underline"
-          >
-            Reset
-          </button>
-        )}
+        <div className="flex items-center gap-2 flex-wrap">
+          <button className={PILL_SELECT}>Product: All <ChevronDown size={12} /></button>
+          <button className={PILL_SELECT}>Commodity: PCB Assembly <ChevronDown size={12} /></button>
+          <button className={PILL_SELECT}>Supplier: All <ChevronDown size={12} /></button>
+          {!analyzed ? (
+            <button onClick={() => setAnalyzed(true)} className={GOLD_BTN}>ANALYZE</button>
+          ) : (
+            <button
+              onClick={() => { setAnalyzed(false); setSelectedNodeId(null); }}
+              className="text-xs text-gray-400 hover:text-gray-600 underline"
+            >
+              Reset
+            </button>
+          )}
+        </div>
       </div>
 
       {/* Pre-analyze hint */}
       {!analyzed && (
-        <div className="bg-gray-50 border border-gray-200 rounded-xl p-10 text-center text-gray-400">
-          <p className="text-lg font-medium mb-2">Ready to analyze</p>
+        <div className={`${CARD} p-10 text-center text-gray-400`}>
+          <p className="text-lg font-semibold mb-2 text-gray-500">Ready to analyze</p>
           <p className="text-sm">
             Click ANALYZE to surface the material suppliers across all {totalSupplierCount} in the network by {exposureWord}.
             <br />
@@ -699,7 +581,6 @@ export default function NetworkView({
         </div>
       )}
 
-      {/* Post-analyze */}
       {analyzed && (
         <>
           {/* Live-data disclaimer */}
@@ -715,28 +596,29 @@ export default function NetworkView({
             </div>
           )}
 
-          {/* Headline + controls */}
-          <div className="bg-blue-50 border border-blue-100 rounded-xl px-5 py-4 mb-4">
-            <p className="text-base font-semibold text-blue-900">
+          {/* Headline card */}
+          <div className={`${CARD} px-5 py-4 mb-4 border-l-4 border-l-amber-400`}>
+            <p className="text-base font-bold text-gray-900">
               {prioritySet.length} of {totalSupplierCount} suppliers need attention now
-              {' — '}covering <span className="text-blue-700">{pctCovered}%</span> of {exposureWord}
+              {' — '}covering <span className="text-amber-600">{pctCovered}%</span> of {exposureWord}
             </p>
-            <p className="text-xs text-blue-600 mt-1 flex items-center gap-2 flex-wrap">
+            <p className="text-xs text-gray-500 mt-1 flex items-center gap-2 flex-wrap">
               <span>{caption}</span>
               <SelectionPopover floor={exposureFloor} exposureLabel={exposureWord} />
             </p>
           </div>
 
+          {/* Coverage control */}
           <div className="flex items-center gap-3 mb-4 flex-wrap">
-            <span className="text-xs text-gray-500 font-medium">Coverage target:</span>
+            <span className={SECTION_LABEL}>Coverage target</span>
             {COVERAGE_OPTIONS.map(({ label, value }) => (
               <button
                 key={label}
-                onClick={() => handleCoverageChange(value)}
-                className={`px-3 py-1.5 text-xs font-semibold rounded-lg transition-colors ${
+                onClick={() => { setCoverageTarget(value); setSelectedNodeId(null); }}
+                className={`px-3 py-1.5 text-xs font-bold rounded-full transition-colors ${
                   coverageTarget === value
-                    ? 'bg-blue-800 text-white shadow-sm'
-                    : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                    ? 'bg-amber-400 text-gray-900 shadow-sm'
+                    : 'bg-white border border-gray-200 text-gray-500 hover:border-amber-300'
                 }`}
               >
                 {label}
@@ -748,7 +630,7 @@ export default function NetworkView({
             </span>
             <button
               onClick={() => setShowModal(true)}
-              className="ml-auto flex items-center gap-1 text-xs font-medium text-blue-700 hover:underline"
+              className="ml-auto flex items-center gap-1 text-xs font-semibold text-amber-600 hover:underline"
             >
               See all {totalSupplierCount} suppliers
               <ExternalLink size={11} />
@@ -756,9 +638,9 @@ export default function NetworkView({
           </div>
 
           {/* Map + side panel */}
-          <div className="bg-white border border-gray-200 rounded-xl overflow-hidden flex">
+          <div className={`${CARD} overflow-hidden flex relative`}>
             {/* SVG map */}
-            <div className="flex-1 p-4 overflow-auto" style={{ maxHeight: 560 }}>
+            <div className="flex-1 p-4 overflow-auto" style={{ maxHeight: 620 }}>
               <NetworkMapSVG
                 root={root}
                 priorityIds={priorityIds}
@@ -767,12 +649,42 @@ export default function NetworkView({
                 onSelectNode={setSelectedNodeId}
                 expandedBadges={expandedBadges}
                 onToggleBadge={handleToggleBadge}
+                zoom={zoom}
               />
+            </div>
+
+            {/* Legend top-right */}
+            <div className="absolute top-3 right-3 pointer-events-none">
+              {!selectedNodeId && <TierLegend />}
+            </div>
+
+            {/* Floating filter bar bottom-left */}
+            <div className="absolute bottom-3 left-3 flex items-center gap-1.5 bg-white/95 backdrop-blur border border-gray-200 rounded-full px-2 py-1.5 shadow-md">
+              {FILTER_PILLS.map(({ key, label }) => (
+                <button
+                  key={key}
+                  onClick={() => setGraphFilter(key)}
+                  className={`px-2.5 py-1 rounded-full text-[11px] font-bold uppercase tracking-wide transition-colors ${
+                    graphFilter === key
+                      ? 'bg-amber-400 text-gray-900'
+                      : 'text-gray-500 hover:bg-gray-100'
+                  }`}
+                >
+                  {label}
+                </button>
+              ))}
+              <span className="w-px h-4 bg-gray-200 mx-0.5" />
+              <button onClick={() => setZoom(z => Math.min(1.6, z + 0.2))} className="p-1 text-gray-500 hover:text-gray-800" aria-label="Zoom in">
+                <ZoomIn size={14} />
+              </button>
+              <button onClick={() => setZoom(z => Math.max(0.6, z - 0.2))} className="p-1 text-gray-500 hover:text-gray-800" aria-label="Zoom out">
+                <ZoomOut size={14} />
+              </button>
             </div>
 
             {/* Side panel */}
             {selectedNodeId && selectedPriority && (
-              <div className="w-72 border-l border-gray-200 flex-shrink-0">
+              <div className="w-72 border-l border-gray-100 flex-shrink-0">
                 <NodeSidePanel
                   priorityInfo={selectedPriority}
                   pathNodes={selectedPath}
@@ -781,27 +693,6 @@ export default function NetworkView({
                 />
               </div>
             )}
-
-            {!selectedNodeId && (
-              <div className="hidden lg:flex w-64 flex-shrink-0 border-l border-gray-100 items-center justify-center">
-                <p className="text-xs text-gray-300 text-center px-4 leading-relaxed">
-                  Click a supplier node to see risk detail, revenue exposure, path from root, and recommended action.
-                </p>
-              </div>
-            )}
-          </div>
-
-          {/* Legend */}
-          <div className="mt-3 flex flex-wrap items-center gap-4 text-xs text-gray-400">
-            <div className="flex items-center gap-1.5"><div className="w-2.5 h-2.5 rounded-full bg-red-600" />Critical (≥70)</div>
-            <div className="flex items-center gap-1.5"><div className="w-2.5 h-2.5 rounded-full bg-yellow-500" />Medium (40–69)</div>
-            <div className="flex items-center gap-1.5"><div className="w-2.5 h-2.5 rounded-full bg-green-500" />Low (&lt;40)</div>
-            <div className="flex items-center gap-1.5">
-              <div className="w-3 h-3 rounded flex items-center justify-center text-red-400 border border-dashed border-gray-300 text-xs">+</div>
-              Collapsed sub-tree (click to expand)
-            </div>
-            <div className="flex items-center gap-1.5"><span className="text-red-500 text-sm">⚠</span> SPOF</div>
-            <div className="flex items-center gap-1.5"><span className="text-orange-500 text-sm">⊕</span> Choke Point</div>
           </div>
         </>
       )}

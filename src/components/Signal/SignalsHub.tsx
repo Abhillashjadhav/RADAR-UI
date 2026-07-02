@@ -55,7 +55,7 @@ function FeedRow({
   return (
     <tr
       onClick={onSelect}
-      className={`cursor-pointer transition-colors ${isAcknowledged ? 'opacity-50' : 'hover:bg-blue-50'}`}
+      className={`cursor-pointer transition-colors ${isAcknowledged ? 'opacity-50' : 'hover:bg-amber-50'}`}
     >
       <td className="px-4 py-3">
         <div className="font-medium text-gray-900 text-sm">{anomaly.supplierName}</div>
@@ -98,7 +98,7 @@ function FeedRow({
         {isAcknowledged ? (
           <span className="text-xs text-gray-400 font-medium">Acknowledged</span>
         ) : (
-          <span className="text-xs text-blue-600 font-medium">Active</span>
+          <span className="text-xs text-amber-600 font-medium">Active</span>
         )}
       </td>
     </tr>
@@ -165,7 +165,7 @@ export default function SignalsHub() {
         <button
           onClick={() => setTab('feed')}
           className={`flex items-center gap-2 px-4 py-2 text-sm font-medium rounded-md transition-colors ${
-            tab === 'feed' ? 'bg-white text-blue-800 shadow-sm' : 'text-gray-600 hover:text-gray-900'
+            tab === 'feed' ? 'bg-white text-amber-700 shadow-sm' : 'text-gray-600 hover:text-gray-900'
           }`}
         >
           <AlertTriangle size={15} />
@@ -174,7 +174,7 @@ export default function SignalsHub() {
         <button
           onClick={() => setTab('ranked')}
           className={`flex items-center gap-2 px-4 py-2 text-sm font-medium rounded-md transition-colors ${
-            tab === 'ranked' ? 'bg-white text-blue-800 shadow-sm' : 'text-gray-600 hover:text-gray-900'
+            tab === 'ranked' ? 'bg-white text-amber-700 shadow-sm' : 'text-gray-600 hover:text-gray-900'
           }`}
         >
           <BarChart2 size={15} />
@@ -183,7 +183,7 @@ export default function SignalsHub() {
         <button
           onClick={() => setTab('demo')}
           className={`flex items-center gap-2 px-4 py-2 text-sm font-medium rounded-md transition-colors ${
-            tab === 'demo' ? 'bg-white text-blue-800 shadow-sm' : 'text-gray-600 hover:text-gray-900'
+            tab === 'demo' ? 'bg-white text-amber-700 shadow-sm' : 'text-gray-600 hover:text-gray-900'
           }`}
         >
           <MessageSquare size={15} />
@@ -206,7 +206,7 @@ export default function SignalsHub() {
               {(['all', 'delivery', 'compliance', 'cost'] as const).map(f => (
                 <button key={f} onClick={() => setImpactFilter(f)}
                   className={`px-2.5 py-1 text-xs font-medium rounded-md transition-colors ${
-                    impactFilter === f ? 'bg-blue-800 text-white' : 'bg-white border border-gray-300 text-gray-600 hover:bg-gray-50'
+                    impactFilter === f ? 'bg-amber-400 text-gray-900' : 'bg-white border border-gray-300 text-gray-600 hover:bg-gray-50'
                   }`}>
                   {f === 'all' ? 'All Impact' : f.charAt(0).toUpperCase() + f.slice(1)}
                 </button>
@@ -216,7 +216,7 @@ export default function SignalsHub() {
               {(['all', 'verified', 'unverified'] as const).map(f => (
                 <button key={f} onClick={() => setVerifiedFilter(f)}
                   className={`px-2.5 py-1 text-xs font-medium rounded-md transition-colors ${
-                    verifiedFilter === f ? 'bg-blue-800 text-white' : 'bg-white border border-gray-300 text-gray-600 hover:bg-gray-50'
+                    verifiedFilter === f ? 'bg-amber-400 text-gray-900' : 'bg-white border border-gray-300 text-gray-600 hover:bg-gray-50'
                   }`}>
                   {f === 'all' ? 'All' : f.charAt(0).toUpperCase() + f.slice(1)}
                 </button>
@@ -337,9 +337,9 @@ export default function SignalsHub() {
             {/* Three surface entry cards */}
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
               {cards.map(({ to, icon: Icon, title, subtitle, description, ctaLabel }) => (
-                <Link key={to} to={to} className="group bg-white rounded-xl border border-gray-200 p-5 hover:border-blue-500 hover:shadow-md transition-all">
+                <Link key={to} to={to} className="group bg-white rounded-xl border border-gray-200 p-5 hover:border-amber-400 hover:shadow-md transition-all">
                   <div className="flex items-start gap-3 mb-3">
-                    <div className="w-10 h-10 rounded-lg bg-blue-50 text-blue-800 flex items-center justify-center flex-shrink-0">
+                    <div className="w-10 h-10 rounded-lg bg-amber-50 text-amber-600 flex items-center justify-center flex-shrink-0">
                       <Icon size={20} />
                     </div>
                     <div>
@@ -348,7 +348,7 @@ export default function SignalsHub() {
                     </div>
                   </div>
                   <p className="text-sm text-gray-600 mb-4">{description}</p>
-                  <span className="inline-flex items-center gap-1 text-sm font-medium text-blue-700 group-hover:text-blue-800">
+                  <span className="inline-flex items-center gap-1 text-sm font-medium text-amber-600 group-hover:text-amber-700">
                     {ctaLabel}<ArrowRight size={14} />
                   </span>
                 </Link>
