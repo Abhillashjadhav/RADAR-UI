@@ -6,6 +6,7 @@ import SupplierDetail from './components/SupplierDetail/SupplierDetail';
 import TeamsCardPreview from './components/Signal/TeamsCardPreview';
 import SignalsHub from './components/Signal/SignalsHub';
 import NetworkView from './components/NetworkView/NetworkView';
+import RiskMonitor from './components/RiskMonitor/RiskMonitor';
 import { QSC_LIVE_NETWORK } from './data/liveNetworkData';
 
 function App() {
@@ -15,7 +16,7 @@ function App() {
         <Route
           path="/"
           element={
-            <Layout showAlertFeed={true}>
+            <Layout showAlertFeed={true} breadcrumb={['RADAR', 'DASHBOARD']}>
               <Dashboard />
             </Layout>
           }
@@ -23,7 +24,7 @@ function App() {
         <Route
           path="/map"
           element={
-            <Layout showAlertFeed={true}>
+            <Layout showAlertFeed={true} breadcrumb={['RADAR', 'SUPPLY CHAIN MAP']}>
               <MapView />
             </Layout>
           }
@@ -31,17 +32,23 @@ function App() {
         <Route
           path="/supplier/:id"
           element={
-            <Layout showAlertFeed={false}>
+            <Layout showAlertFeed={false} breadcrumb={['RADAR', 'SUPPLIER RISK']}>
               <SupplierDetail />
             </Layout>
           }
         />
-        {/* Signal model demo views — wrapped in Layout so the TopNav stays
-            present and reviewers can move between surfaces in one shell. */}
+        <Route
+          path="/risk-monitor"
+          element={
+            <Layout showAlertFeed={true} breadcrumb={['RADAR', 'RISK MONITOR']}>
+              <RiskMonitor />
+            </Layout>
+          }
+        />
         <Route
           path="/network"
           element={
-            <Layout showAlertFeed={false}>
+            <Layout showAlertFeed={false} breadcrumb={['RADAR', 'SUBTIER NETWORK']}>
               <NetworkView />
             </Layout>
           }
@@ -49,7 +56,7 @@ function App() {
         <Route
           path="/network-live"
           element={
-            <Layout showAlertFeed={false}>
+            <Layout showAlertFeed={false} breadcrumb={['RADAR', 'QSC LIVE']}>
               <NetworkView
                 root={QSC_LIVE_NETWORK}
                 title="QSC Sub-Tier Network"
@@ -62,7 +69,7 @@ function App() {
         <Route
           path="/signals"
           element={
-            <Layout showAlertFeed={false}>
+            <Layout showAlertFeed={false} breadcrumb={['SIGNAL', 'ANOMALY FEED']}>
               <SignalsHub />
             </Layout>
           }
@@ -70,7 +77,7 @@ function App() {
         <Route
           path="/preview/teams-card"
           element={
-            <Layout showAlertFeed={false}>
+            <Layout showAlertFeed={false} breadcrumb={['SIGNAL', 'TEAMS CARD']}>
               <TeamsCardPreview />
             </Layout>
           }
