@@ -1,7 +1,7 @@
 import { useState, useMemo, useReducer } from 'react';
 import { Link } from 'react-router-dom';
 import { AlertTriangle, CheckCircle, BarChart2, MessageSquare, AlertOctagon, FileCheck, ArrowRight } from 'lucide-react';
-import { ANOMALIES } from '../../data/anomalyMockData';
+import { ANOMALIES } from '../../data/analysisAnomalies';
 import type { Anomaly } from '../../data/anomalyMockData';
 import { formatRevenueAtRisk, lensHumanLabel, severityTokens } from './signalUi';
 import { sampleSignal } from '../../data/sample-signal';

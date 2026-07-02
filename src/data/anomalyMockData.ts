@@ -51,6 +51,14 @@ export interface Anomaly {
   status: AnomalyStatus;
   acknowledgedAt?: string;
   acknowledgedBy?: string;
+
+  // --- production-scoring extensions (present when derived from fixtures) ---
+  /** Sub-factor attribution of the score delta — the parameter that moved. */
+  attribution?: import('../types/analysis').SubFactorContribution[];
+  /** The lens this anomaly fired on, with its real events. */
+  dimension?: import('../types/analysis').AnalysisDimension;
+  /** Parent supplier analysis (overall score, revenueImpact, all 12 lenses). */
+  analysis?: import('../types/analysis').SupplierAnalysis;
 }
 
 // ---------------------------------------------------------------------------

@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { ANOMALIES } from '../../data/anomalyMockData';
+import { ANOMALIES } from '../../data/analysisAnomalies';
 import { formatRevenueAtRisk } from '../Signal/signalUi';
 import { CARD, SECTION_LABEL } from '../../theme/tokens';
 
