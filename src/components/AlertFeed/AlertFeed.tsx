@@ -69,7 +69,7 @@ export default function AlertFeed() {
       {/* Alert cards */}
       <div className="space-y-2.5 overflow-y-auto alert-feed-scroll">
         {rows.map(a => {
-          const delta = a.scoreAfter - a.scoreBaseline;
+          const delta = Math.round((a.scoreAfter - a.scoreBaseline) * 10) / 10;
           const escalated = a.scoreAfter >= 70;
           return (
             <div key={a.id} className={`${CARD} p-3`}>

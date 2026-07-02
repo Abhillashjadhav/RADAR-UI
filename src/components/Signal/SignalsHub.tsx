@@ -49,7 +49,7 @@ function FeedRow({
   isAcknowledged: boolean;
   onSelect: () => void;
 }) {
-  const delta = anomaly.scoreAfter - anomaly.scoreBaseline;
+  const delta = Math.round((anomaly.scoreAfter - anomaly.scoreBaseline) * 10) / 10;
   const hasBreakout = delta > 0;
 
   return (

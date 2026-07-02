@@ -142,7 +142,7 @@ export default function SubTierDetailModal({ root, prioritySet, onClose, exposur
               value={search}
               onChange={e => setSearch(e.target.value)}
               placeholder="Search suppliers, locations, commodities…"
-              className="w-full pl-8 pr-3 py-1.5 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="w-full pl-8 pr-3 py-1.5 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-amber-400"
             />
           </div>
 
@@ -153,7 +153,7 @@ export default function SubTierDetailModal({ root, prioritySet, onClose, exposur
                 onClick={() => setTierFilter(t)}
                 className={`px-2.5 py-1 text-xs font-medium rounded-md transition-colors ${
                   tierFilter === t
-                    ? 'bg-blue-800 text-white'
+                    ? 'bg-amber-400 text-gray-900'
                     : 'bg-white border border-gray-300 text-gray-600 hover:bg-gray-50'
                 }`}
               >
@@ -169,7 +169,7 @@ export default function SubTierDetailModal({ root, prioritySet, onClose, exposur
                 onClick={() => setImpactFilter(imp)}
                 className={`px-2.5 py-1 text-xs font-medium rounded-md transition-colors ${
                   impactFilter === imp
-                    ? 'bg-blue-800 text-white'
+                    ? 'bg-amber-400 text-gray-900'
                     : 'bg-white border border-gray-300 text-gray-600 hover:bg-gray-50'
                 }`}
               >

@@ -67,7 +67,7 @@ export default function RankedExceptionFeed({ anomalies, onSelect }: Props) {
         a.lensLabel,
         a.impactBucket,
         a.scoreAfter,
-        a.scoreAfter - a.scoreBaseline,
+        Math.round((a.scoreAfter - a.scoreBaseline) * 10) / 10,
         a.costExposureUsd ?? 'insufficient data',
         st === null ? 'n/a' : Math.round(st),
         a.breakDate,
@@ -154,7 +154,7 @@ export default function RankedExceptionFeed({ anomalies, onSelect }: Props) {
           </thead>
           <tbody className="divide-y divide-gray-100">
             {rows.map((a, idx) => {
-              const delta = a.scoreAfter - a.scoreBaseline;
+              const delta = Math.round((a.scoreAfter - a.scoreBaseline) * 10) / 10;
               const scoreColor = a.scoreAfter >= 70 ? 'text-red-600 bg-red-50' : a.scoreAfter >= 40 ? 'text-yellow-600 bg-yellow-50' : 'text-green-600 bg-green-50';
               const strength = anomalyStrength(a);
               return (

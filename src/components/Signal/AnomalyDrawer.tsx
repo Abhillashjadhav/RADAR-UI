@@ -121,6 +121,41 @@ export default function AnomalyDrawer({ anomaly, onClose, onAcknowledge }: Props
             <ScoreBreakdown bd={anomaly.breakdown} />
           )}
 
+          {/* All 12 lenses — no-data renders greyed, never as a measured 50 */}
+          {anomaly.analysis && (
+            <div className="rounded-xl border border-gray-200 bg-white p-4">
+              <p className={`${SECTION_LABEL} mb-3`}>
+                All 12 lenses — {anomaly.analysis.supplierName} · overall {anomaly.analysis.overallScore}
+              </p>
+              <div className="grid grid-cols-3 gap-2">
+                {anomaly.analysis.dimensions.map(d => (
+                  <div
+                    key={d.key}
+                    className={`rounded-lg px-2.5 py-2 border ${
+                      d.has_event_data
+                        ? d.key === anomaly.lens
+                          ? 'border-amber-300 bg-amber-50'
+                          : 'border-gray-100 bg-white'
+                        : 'border-gray-100 bg-gray-50 opacity-60'
+                    }`}
+                  >
+                    <p className="text-[10px] font-bold text-gray-500 uppercase tracking-wide">{d.abbr}</p>
+                    {d.has_event_data ? (
+                      <p className={`text-sm font-bold tabular-nums ${
+                        d.score >= 70 ? 'text-red-600' : d.score >= 40 ? 'text-amber-600' : 'text-green-600'
+                      }`}>
+                        {d.score}
+                        <span className="ml-1 text-[10px] font-medium text-gray-400">{d.event_count} ev</span>
+                      </p>
+                    ) : (
+                      <p className="text-[11px] font-semibold text-gray-400">No data</p>
+                    )}
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
           {/* Sources */}
           <div className="rounded-xl border border-gray-200 bg-white p-4">
             <p className={`${SECTION_LABEL} mb-3`}>Sources</p>
