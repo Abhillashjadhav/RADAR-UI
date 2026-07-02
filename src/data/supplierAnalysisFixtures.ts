@@ -162,6 +162,86 @@ const LITTELFUSE = buildAnalysis('SUPA-006', 'LITTELFUSE', 'Chicago, USA', 3_700
   ],
 });
 
+// ---------------------------------------------------------------------------
+// 7–14. Wider monitored set — more breaks so the feed reads at demo scale.
+// ---------------------------------------------------------------------------
+
+// PANASONIC — logistics break, UNVERIFIED (one dead source link).
+const PANASONIC = buildAnalysis('SUPA-007', 'PANASONIC', 'Osaka, Japan', 17_300, {
+  logistics_transport: [
+    ev('2026-05-05', 'ocean reliability', -0.25, 'Kansai export lanes stable through April', 'https://www.joc.com/kansai-2026', 14, 30, 0.12),
+    ev('2026-05-22', 'ocean reliability', -0.30, 'Osaka port crane maintenance extends gate hours', 'https://www.joc.com/osaka-crane-2026', 10, 20, 0.15),
+    ev('2026-06-24', 'port strike', -0.75, 'Dockworker strike ballot passes at Osaka terminal', '', 5, 30, 0.68),
+    ev('2026-06-28', 'port strike', -0.65, 'Strike notice filed; 72-hour stoppage expected', 'https://www.nikkei.com/osaka-strike-2026', 3, 14, 0.6),
+  ],
+  economic_financial: [
+    ev('2026-05-15', 'fx exposure', -0.15, 'Yen volatility hedges renewed at higher cost', 'https://www.nikkei.com/yen-2026', 60, 90, 0.08),
+  ],
+});
+
+// KOA — labor break, PROVISIONAL baseline (single older event).
+const KOA = buildAnalysis('SUPA-008', 'KOA', 'Nagano, Japan', 12_000, {
+  labor_social: [
+    ev('2026-06-01', 'workforce availability', -0.20, 'Seasonal hiring gap at Nagano resistor plant', 'https://www.asahi.com/koa-hiring-2026', 30, 60, 0.1),
+    ev('2026-06-25', 'workforce availability', -0.70, 'Overtime cap ruling cuts line-3 capacity 15%', 'https://www.asahi.com/overtime-2026', 14, 60, 0.55),
+  ],
+});
+
+// SAMSUNG — tech/cyber break driven by TWO sub-factors.
+const SAMSUNG = buildAnalysis('SUPA-009', 'SAMSUNG', 'Suwon, South Korea', 9_500, {
+  tech_cyber: [
+    ev('2026-05-02', 'patch posture', -0.15, 'Quarterly OT patch audit passes with notes', 'https://www.samsungsem.com/security-2026', 0, 0, 0.06),
+    ev('2026-05-20', 'patch posture', -0.20, 'Legacy MES segment flagged for slow patch cadence', 'https://www.samsungsem.com/mes-2026', 30, 60, 0.1),
+    ev('2026-06-22', 'ransomware activity', -0.80, 'Ransomware crew claims MES vendor breach', 'https://www.bleepingcomputer.com/mes-breach-2026', 7, 45, 0.7),
+    ev('2026-06-26', 'ransomware activity', -0.70, 'IOC overlap confirmed with plant-floor vendor', 'https://www.cisa.gov/ioc-2026', 7, 30, 0.62),
+    ev('2026-06-29', 'zero-day exposure', -0.55, 'Unpatched CVE in line-controller firmware disclosed', 'https://nvd.nist.gov/cve-2026', 14, 60, 0.45),
+  ],
+});
+
+// YAGEO — market/competition break (allocation pricing).
+const YAGEO = buildAnalysis('SUPA-010', 'YAGEO', 'New Taipei, Taiwan', 7_800, {
+  market_competition: [
+    ev('2026-05-01', 'capacity pricing', -0.20, 'MLCC pricing steady on soft demand', 'https://www.digitimes.com/mlcc-2026', 30, 60, 0.08),
+    ev('2026-05-25', 'capacity pricing', -0.25, 'Passive-component book-to-bill ticks above 1', 'https://www.digitimes.com/btb-2026', 30, 60, 0.1),
+    ev('2026-06-23', 'allocation risk', -0.70, 'Yageo moves automotive MLCC lines to allocation', 'https://www.digitimes.com/allocation-2026', 30, 90, 0.6),
+  ],
+  esg_regulatory: [
+    ev('2026-05-12', 'compliance filings', -0.10, 'Conflict-minerals report filed on time', 'https://www.yageo.com/cmrt-2026', 0, 0, 0.04),
+  ],
+});
+
+// MURATA — environmental break (earthquake).
+const MURATA = buildAnalysis('SUPA-011', 'MURATA', 'Kyoto, Japan', 6_900, {
+  environmental_climate: [
+    ev('2026-05-03', 'seismic watch', -0.20, 'Routine seismic monitoring — no anomalies', 'https://www.jma.go.jp/seismic-2026', 0, 0, 0.05),
+    ev('2026-06-21', 'earthquake impact', -0.75, 'M6.1 quake near Fukui halts ceramic kiln lines', 'https://www.jma.go.jp/fukui-2026', 3, 30, 0.66),
+    ev('2026-06-24', 'earthquake impact', -0.55, 'Kiln requalification adds 2-week restart tail', 'https://www.nikkei.com/kiln-2026', 14, 30, 0.44),
+  ],
+});
+
+// ON SEMICONDUCTOR — economic break.
+const ONSEMI = buildAnalysis('SUPA-012', 'ON SEMICONDUCTOR', 'Phoenix, USA', 5_600, {
+  economic_financial: [
+    ev('2026-05-06', 'credit health', -0.20, 'Leverage ratio stable at Q1 review', 'https://www.dnb.com/onsemi-2026', 90, 180, 0.08),
+    ev('2026-06-27', 'divestiture risk', -0.65, 'Discrete-products unit put under strategic review', 'https://www.reuters.com/onsemi-review-2026', 60, 180, 0.5),
+  ],
+});
+
+// GREENCONN — stable, measured but no break (control row for the demo).
+const GREENCONN = buildAnalysis('SUPA-013', 'GREENCONN', 'Taoyuan, Taiwan', 2_200, {
+  logistics_transport: [
+    ev('2026-05-10', 'ocean reliability', -0.20, 'Taiwan-US lane reliability steady at 74%', 'https://www.sea-intelligence.com/tw-2026', 14, 30, 0.08),
+  ],
+});
+
+// JST — mostly no-data, one mild measured lens (second SABIC-pattern row).
+const JST = buildAnalysis('SUPA-014', 'JST', 'Osaka, Japan', 2_382, {
+  infrastructure: [
+    ev('2026-05-14', 'grid reliability', -0.10, 'No grid constraints flagged for Osaka works', 'https://www.eia.gov/jst-2026', 0, 0, 0.04),
+  ],
+});
+
 export const SUPPLIER_ANALYSES: SupplierAnalysis[] = [
   VTECH, GOLDENBAMBOO, GP_ELECTRONICS, TI, BEL_FUSE, LITTELFUSE,
+  PANASONIC, KOA, SAMSUNG, YAGEO, MURATA, ONSEMI, GREENCONN, JST,
 ];
