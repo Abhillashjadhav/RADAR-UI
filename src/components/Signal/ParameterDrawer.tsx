@@ -56,15 +56,12 @@ function ParameterRow({ p, dim, lensDelta }: { p: ParameterChange; dim: Analysis
   );
 
   return (
-    <div id={`param-graph-${p.parameter_id}`} className="rounded-xl border border-gray-100 bg-white p-3.5 space-y-2 scroll-mt-4">
+    <div className="rounded-xl border border-gray-100 bg-white p-3.5 space-y-2">
       {/* Name + impact tag */}
       <div className="flex items-start justify-between gap-2">
         <p className="text-sm font-semibold text-gray-900 leading-snug">{p.name}</p>
         <span className={chip(p.impact_bucket)}>{p.impact_bucket}</span>
       </div>
-
-      {/* PARAMETER GRAPH — 30 days of the value in its native unit */}
-      {p.history && p.history.length > 1 && <ParameterChart param={p} height={130} />}
 
       {/* Before → After, prominent, native unit */}
       <p className="tabular-nums">
@@ -156,6 +153,21 @@ export default function ParameterDrawer({ analysis, dim, onClose }: Props) {
 
         {/* Body */}
         <div className="flex-1 overflow-y-auto px-5 py-4 space-y-3 bg-[#F7F8FA]">
+          {/* PARAMETER GRAPHS — the very first content block, always expanded */}
+          {[...changed, ...unchanged].filter(p => p.history && p.history.length > 1).length > 0 && (
+            <div className="rounded-xl border border-gray-100 bg-white p-3.5 space-y-3">
+              <p className={SECTION_LABEL}>Parameter graphs — what actually changed (30 days)</p>
+              {[...changed, ...unchanged]
+                .filter(p => p.history && p.history.length > 1)
+                .map(p => (
+                  <div key={p.parameter_id} id={`param-graph-${p.parameter_id}`} className="scroll-mt-4">
+                    <p className="text-sm font-semibold text-gray-900 leading-snug mb-1">{p.name}</p>
+                    <ParameterChart param={p} height={130} />
+                  </div>
+                ))}
+            </div>
+          )}
+
           {changed.length > 0 && (
             <>
               <p className={SECTION_LABEL}>Changed parameters</p>

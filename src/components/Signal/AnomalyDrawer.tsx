@@ -32,25 +32,50 @@ function ParameterGraphs({ dim, lensDelta }: { dim: AnalysisDimension; lensDelta
 
   if (params.length === 0) return null;
 
+  // Charts only — always expanded, never collapsed. Detail lines live below
+  // the attribution bar (ParameterDetails).
   return (
     <div className="rounded-xl border border-gray-200 bg-white p-4 space-y-4">
       <p className={SECTION_LABEL}>Parameter graphs — what actually changed (30 days)</p>
       {params.map(p => (
         <div key={p.parameter_id} id={`param-graph-${p.parameter_id}`} className="scroll-mt-4">
-          <div className="flex items-start justify-between gap-2 mb-1">
-            <p className="text-sm font-semibold text-gray-900 leading-snug">{p.name}</p>
-            <span className={chip(p.impact_bucket)}>{p.impact_bucket}</span>
-          </div>
+          <p className="text-sm font-semibold text-gray-900 leading-snug mb-1">{p.name}</p>
           <ParameterChart param={p} height={130} />
-          <p className="text-xs text-gray-500 leading-relaxed mt-1 tabular-nums">
-            {p.before !== p.after && lensDelta !== 0 && (
-              <>Contribution <span className="font-bold text-red-600">+{p.contribution}</span> of ▲ {lensDelta} · </>
-            )}
-            {p.before === p.after && <span className="font-semibold text-gray-400">no change in window · </span>}
-            {p.implication}
-          </p>
         </div>
       ))}
+      <span className="sr-only">lens delta {lensDelta}</span>
+    </div>
+  );
+}
+
+// Parameter detail lines — contribution, implication, impact tag (below the bar)
+function ParameterDetails({ dim, lensDelta }: { dim: AnalysisDimension; lensDelta: number }) {
+  const params = useMemo(() => {
+    const all = dim.parameter_changes ?? [];
+    return [...all].sort((a, b) => b.contribution - a.contribution);
+  }, [dim]);
+  if (params.length === 0) return null;
+
+  return (
+    <div className="rounded-xl border border-gray-200 bg-white p-4 space-y-3">
+      <p className={SECTION_LABEL}>Parameter detail</p>
+      {params.map(p => {
+        const changed = p.before !== p.after;
+        return (
+          <div key={p.parameter_id} className="flex items-start justify-between gap-3">
+            <div className="min-w-0">
+              <p className="text-sm font-semibold text-gray-900 leading-snug">{p.name}</p>
+              <p className="text-xs text-gray-500 leading-relaxed tabular-nums">
+                {changed && lensDelta !== 0
+                  ? <>Contribution <span className="font-bold text-red-600">+{p.contribution}</span> of ▲ {lensDelta} · </>
+                  : <span className="font-semibold text-gray-400">no change in window · </span>}
+                {p.implication}
+              </p>
+            </div>
+            <span className={chip(p.impact_bucket)}>{p.impact_bucket}</span>
+          </div>
+        );
+      })}
     </div>
   );
 }
@@ -170,7 +195,26 @@ export default function AnomalyDrawer({ anomaly, onClose, onAcknowledge }: Props
 
         {/* Scrollable body */}
         <div className="flex-1 overflow-y-auto px-6 py-5 space-y-5 bg-[#F7F8FA]">
-          {/* Key metrics — score is the STATE; the badge is the anomaly */}
+          {/* 1. PARAMETER GRAPHS — the very first content block, always expanded */}
+          {selectedDim && <ParameterGraphs dim={selectedDim} lensDelta={lensDelta} />}
+
+          {/* 2. Attribution split bar — segments scroll-link to their graphs */}
+          {selectedDim && det?.status === 'fired' && attribution.length > 0 && (
+            <SubFactorAttribution
+              lensLabel={selectedDim.label}
+              before={det.scoreBaseline}
+              after={det.latest}
+              attribution={attribution}
+              selected={subFactorFilter}
+              onSelect={scrollToParam}
+            />
+          )}
+          {!selectedDim && <ScoreBreakdown bd={anomaly.breakdown} />}
+
+          {/* 3. Parameter detail lines — contribution, implication, impact tag */}
+          {selectedDim && <ParameterDetails dim={selectedDim} lensDelta={lensDelta} />}
+
+          {/* Key metrics — the reading is the STATE; the badge is the anomaly */}
           <div className="grid grid-cols-3 gap-3">
             <div className="bg-white border border-gray-100 rounded-xl p-3">
               <p className="text-xs text-gray-500 mb-1">Lens Reading</p>
@@ -199,23 +243,46 @@ export default function AnomalyDrawer({ anomaly, onClose, onAcknowledge }: Props
             </div>
           </div>
 
-          {/* 1. PARAMETER GRAPHS — what actually changed, first thing seen */}
-          {selectedDim && <ParameterGraphs dim={selectedDim} lensDelta={lensDelta} />}
-
-          {/* 2. Attribution split bar — segments scroll-link to their graphs */}
-          {selectedDim && det?.status === 'fired' && attribution.length > 0 && (
-            <SubFactorAttribution
-              lensLabel={selectedDim.label}
-              before={det.scoreBaseline}
-              after={det.latest}
-              attribution={attribution}
-              selected={subFactorFilter}
-              onSelect={scrollToParam}
-            />
+          {/* 4. Events + sources */}
+          {selectedDim && selectedDim.events.length > 0 && (
+            <EventMath events={mathEvents} score={mathScore} />
           )}
-          {!selectedDim && <ScoreBreakdown bd={anomaly.breakdown} />}
+          <div className="rounded-xl border border-gray-200 bg-white p-4">
+            <p className={`${SECTION_LABEL} mb-3`}>Sources</p>
+            <ul className="space-y-2">
+              {anomaly.sources.map((src, i) => {
+                const isDead = !src.url;
+                return (
+                  <li key={i} className="flex items-start gap-2">
+                    {isDead ? (
+                      <>
+                        <AlertTriangle size={14} className="text-amber-500 flex-shrink-0 mt-0.5" />
+                        <div>
+                          <span className="text-sm text-gray-700">{src.label}</span>
+                          <span className="ml-2 text-xs text-amber-600 font-medium">[link unavailable — unverified]</span>
+                        </div>
+                      </>
+                    ) : (
+                      <>
+                        <CheckCircle size={14} className="text-green-500 flex-shrink-0 mt-0.5" />
+                        <a
+                          href={src.url}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="text-sm text-amber-700 hover:underline flex items-center gap-1"
+                        >
+                          {src.label}
+                          <ExternalLink size={11} />
+                        </a>
+                      </>
+                    )}
+                  </li>
+                );
+              })}
+            </ul>
+          </div>
 
-          {/* 3. Lens context at the BOTTOM — tiles + lens-level info, no trend chart */}
+          {/* 5. Lens context at the BOTTOM — tiles + lens-level info, no trend chart */}
           {anomaly.analysis && (
             <div className="rounded-xl border border-gray-200 bg-white p-4">
               <p className={`${SECTION_LABEL} mb-3`}>
@@ -269,47 +336,6 @@ export default function AnomalyDrawer({ anomaly, onClose, onAcknowledge }: Props
             </div>
           )}
           {selectedDim && <LensContext dim={selectedDim} />}
-
-          {/* Events (unchanged, bottom) */}
-          {selectedDim && selectedDim.events.length > 0 && (
-            <EventMath events={mathEvents} score={mathScore} />
-          )}
-
-          {/* Sources */}
-          <div className="rounded-xl border border-gray-200 bg-white p-4">
-            <p className={`${SECTION_LABEL} mb-3`}>Sources</p>
-            <ul className="space-y-2">
-              {anomaly.sources.map((src, i) => {
-                const isDead = !src.url;
-                return (
-                  <li key={i} className="flex items-start gap-2">
-                    {isDead ? (
-                      <>
-                        <AlertTriangle size={14} className="text-amber-500 flex-shrink-0 mt-0.5" />
-                        <div>
-                          <span className="text-sm text-gray-700">{src.label}</span>
-                          <span className="ml-2 text-xs text-amber-600 font-medium">[link unavailable — unverified]</span>
-                        </div>
-                      </>
-                    ) : (
-                      <>
-                        <CheckCircle size={14} className="text-green-500 flex-shrink-0 mt-0.5" />
-                        <a
-                          href={src.url}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="text-sm text-amber-700 hover:underline flex items-center gap-1"
-                        >
-                          {src.label}
-                          <ExternalLink size={11} />
-                        </a>
-                      </>
-                    )}
-                  </li>
-                );
-              })}
-            </ul>
-          </div>
 
           {/* Acknowledged info */}
           {anomaly.status === 'acknowledged' && (

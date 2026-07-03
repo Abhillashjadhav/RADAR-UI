@@ -51,9 +51,10 @@ export default function ParameterChart({ param: p, height = 130 }: Props) {
     return `L ${x} ${yOf(history[i - 1].value)} L ${x} ${y}`;
   }).join(' ');
 
+  const jump = Math.round((p.after - p.before) * 10) / 10;
   const annotation = p.value_type === 'binary'
     ? `TRIGGERED · ${history[changeIdx]?.date.slice(5) ?? ''}`
-    : `${fmt(p, p.before)} → ${fmt(p, p.after)}`;
+    : `${fmt(p, p.before)} → ${fmt(p, p.after)} · ${jump > 0 ? '▲ +' : '▼ '}${jump} pts`;
 
   return (
     <svg viewBox={`0 0 ${W} ${H}`} width="100%" style={{ maxHeight: H }} className="overflow-visible">
