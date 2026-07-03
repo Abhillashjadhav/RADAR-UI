@@ -96,16 +96,39 @@ const VTECH = buildAnalysis('SUPA-001', 'VTECH (DONGGUAN)', 'Dongguan, China', 2
 });
 
 // ---------------------------------------------------------------------------
-// 2. GOLDENBAMBOO — ESG break on a single sub-factor ("forced-labor audit").
+// 2. GOLDENBAMBOO — the CLEAN DEMO CASE per spec.
+//    ESG: four mild baseline events → 30+ days of stable runs at ~52 (±3),
+//    then a breakout to ~72 driven by TWO sub-factors:
+//      "labor practices"      5 events, avg sentiment −0.71
+//      "emissions violations" 2 events, avg sentiment −0.55
+//    Baseline avg = −0.04 → (1.04)/2×100 = 52.0. All 11 events → 71.9.
+//    Also: labor_social has only ~10 days of history → "Baseline building",
+//    must never fire.
 // ---------------------------------------------------------------------------
 const GOLDENBAMBOO = buildAnalysis('SUPA-002', 'GOLDENBAMBOO', 'Shenzhen, China', 17_111, {
   esg_regulatory: [
-    ev('2026-05-10', 'compliance filings', -0.10, 'Annual CSR report filed on schedule', 'https://www.goldenbamboo.cn/csr-2026', 0, 0, 0.05),
-    ev('2026-06-23', 'forced-labor audit', -0.90, 'UFLPA detention notice on transformer shipment lot', 'https://www.cbp.gov/uflpa-detention-2026', 3, 60, 0.85),
-    ev('2026-06-26', 'forced-labor audit', -0.70, 'Auditor flags labor-broker fees at supplier campus', 'https://www.business-humanrights.org/broker-fees-2026', 14, 90, 0.66),
+    // baseline period — stable ~52
+    ev('2026-05-08', 'compliance filings', -0.10, 'Annual CSR report filed one week late', 'https://www.goldenbamboo.cn/csr-2026', 0, 0, 0.05),
+    ev('2026-05-14', 'compliance filings',  0.04, 'ISO 14001 surveillance audit passed', 'https://www.goldenbamboo.cn/iso-2026', 0, 0, 0.02),
+    ev('2026-05-20', 'permit status', -0.08, 'Wastewater discharge permit renewal pending', 'https://www.mee.gov.cn/permits-2026', 30, 60, 0.05),
+    ev('2026-05-27', 'permit status', -0.02, 'Permit renewal granted with standard conditions', 'https://www.mee.gov.cn/permit-grant-2026', 0, 0, 0.02),
+    // breakout — labor practices (5 events, avg −0.71)
+    ev('2026-06-24', 'labor practices', -0.75, 'UFLPA detention notice on transformer shipment lot', 'https://www.cbp.gov/uflpa-detention-2026', 3, 60, 0.72),
+    ev('2026-06-25', 'labor practices', -0.72, 'Auditor flags labor-broker fees at supplier campus', 'https://www.business-humanrights.org/broker-fees-2026', 14, 90, 0.66),
+    ev('2026-06-27', 'labor practices', -0.70, 'Recruitment-fee reimbursement plan demanded by customer coalition', 'https://www.reuters.com/recruitment-fees-2026', 30, 120, 0.6),
+    ev('2026-06-28', 'labor practices', -0.68, 'Second campus added to detention review scope', 'https://www.cbp.gov/uflpa-scope-2026', 7, 60, 0.58),
+    ev('2026-06-30', 'labor practices', -0.70, 'NGO publishes worker-interview findings', 'https://www.business-humanrights.org/interviews-2026', 14, 90, 0.62),
+    // breakout — emissions violations (2 events, avg −0.55)
+    ev('2026-06-26', 'emissions violations', -0.55, 'Provincial regulator cites stack-emissions exceedance', 'https://www.mee.gov.cn/emissions-2026', 30, 90, 0.45),
+    ev('2026-06-29', 'emissions violations', -0.55, 'Follow-up inspection confirms scrubber underperformance', 'https://www.mee.gov.cn/inspection-2026', 30, 90, 0.44),
   ],
   economic_financial: [
     ev('2026-05-20', 'credit health', -0.20, 'Working-capital ratio slips below sector median', 'https://www.dnb.com/goldenbamboo-2026', 60, 120, 0.1),
+  ],
+  // Baseline building — first event only ~10 days ago; never fires
+  labor_social: [
+    ev('2026-06-22', 'workforce availability', -0.30, 'Shift-coverage gaps reported at Shenzhen campus', 'https://www.sixthtone.com/shenzhen-shifts-2026', 14, 30, 0.15),
+    ev('2026-06-28', 'workforce availability', -0.35, 'Contract-labor agency audit initiated', 'https://www.sixthtone.com/agency-audit-2026', 30, 60, 0.2),
   ],
 });
 
