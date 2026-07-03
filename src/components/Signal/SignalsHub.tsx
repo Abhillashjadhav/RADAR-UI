@@ -1,5 +1,5 @@
 import { useState, useMemo, useReducer } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useSearchParams } from 'react-router-dom';
 import { AlertTriangle, CheckCircle, BarChart2, MessageSquare, AlertOctagon, FileCheck, ArrowRight } from 'lucide-react';
 import { ANOMALIES } from '../../data/analysisAnomalies';
 import type { Anomaly } from '../../data/anomalyMockData';
@@ -7,6 +7,8 @@ import { formatRevenueAtRisk, lensHumanLabel, severityTokens } from './signalUi'
 import { sampleSignal } from '../../data/sample-signal';
 import AnomalyDrawer from './AnomalyDrawer';
 import RankedExceptionFeed from './RankedExceptionFeed';
+import ParameterDrawer from './ParameterDrawer';
+import { SUPPLIER_ANALYSES } from '../../data/supplierAnalysisFixtures';
 import { LENSES } from '../../data/popLens';
 
 // ---------------------------------------------------------------------------
@@ -45,10 +47,12 @@ function FeedRow({
   anomaly,
   isAcknowledged,
   onSelect,
+  onLensClick,
 }: {
   anomaly: Anomaly;
   isAcknowledged: boolean;
   onSelect: () => void;
+  onLensClick: () => void;
 }) {
   const delta = Math.round((anomaly.scoreAfter - anomaly.scoreBaseline) * 10) / 10;
   const hasBreakout = delta > 0;
@@ -62,7 +66,21 @@ function FeedRow({
         <div className="font-medium text-gray-900 text-sm">{anomaly.supplierName}</div>
         <div className="text-xs text-gray-400">T{anomaly.tier}</div>
       </td>
-      <td className="px-4 py-3 text-xs text-gray-600">{anomaly.lensLabel}</td>
+      <td className="px-4 py-3">
+        {/* Lens tile — clickable, opens parameter-level attribution */}
+        <button
+          onClick={e => { e.stopPropagation(); onLensClick(); }}
+          className="flex items-center gap-1.5 text-xs text-gray-600 hover:text-amber-700 hover:underline text-left"
+          title="View parameter-level attribution"
+        >
+          {anomaly.lensLabel}
+          {hasBreakout && (
+            <span className="px-1 py-0.5 rounded text-[10px] font-bold tabular-nums bg-red-100 text-red-700">
+              ▲ +{delta}
+            </span>
+          )}
+        </button>
+      </td>
       <td className="px-4 py-3">
         <div className="flex items-center gap-2">
           <span className={`inline-flex items-center justify-center w-9 h-7 rounded text-xs font-bold tabular-nums ${SCORE_COLOR(anomaly.scoreAfter)}`}>
@@ -115,6 +133,26 @@ export default function SignalsHub() {
   const [, bump] = useReducer((n: number) => n + 1, 0);
   const [tab, setTab] = useState<Tab>('feed');
   const [selectedAnomaly, setSelectedAnomaly] = useState<Anomaly | null>(null);
+
+  // Parameter drawer state lives in the URL (?lens=geopolitical[&supplier=SUPA-001])
+  // so a drawer state is shareable / screenshottable.
+  const [searchParams, setSearchParams] = useSearchParams();
+  const lensParam = searchParams.get('lens');
+  const supplierParam = searchParams.get('supplier');
+  const paramDrawer = useMemo(() => {
+    if (!lensParam) return null;
+    const analysis = supplierParam
+      ? SUPPLIER_ANALYSES.find(s => s.id === supplierParam)
+      : ANOMALIES.find(an => an.lens === lensParam)?.analysis
+        ?? SUPPLIER_ANALYSES.find(s => s.dimensions.some(d => d.key === lensParam && d.has_event_data));
+    const dim = analysis?.dimensions.find(d => d.key === lensParam && d.has_event_data);
+    return analysis && dim ? { analysis, dim } : null;
+  }, [lensParam, supplierParam]);
+
+  const openParameterDrawer = (a: Anomaly) => {
+    setSearchParams({ lens: a.lens, supplier: a.supplierId });
+  };
+  const closeParameterDrawer = () => setSearchParams({}, { replace: true });
   const [impactFilter, setImpactFilter] = useState<'all' | 'delivery' | 'compliance' | 'cost'>('all');
   const [verifiedFilter, setVerifiedFilter] = useState<'all' | 'verified' | 'unverified'>('all');
   const [lensFilter, setLensFilter] = useState<string>('all'); // 12-lens key or 'all'
@@ -286,6 +324,7 @@ export default function SignalsHub() {
                     anomaly={a}
                     isAcknowledged={acknowledged.has(a.id)}
                     onSelect={() => setSelectedAnomaly(a)}
+                    onLensClick={() => openParameterDrawer(a)}
                   />
                 ))}
               </tbody>
@@ -396,6 +435,15 @@ export default function SignalsHub() {
           </div>
         );
       })()}
+
+      {/* Parameter-level attribution drawer (URL-driven, read-only) */}
+      {paramDrawer && (
+        <ParameterDrawer
+          analysis={paramDrawer.analysis}
+          dim={paramDrawer.dim}
+          onClose={closeParameterDrawer}
+        />
+      )}
 
       {/* Anomaly detail drawer */}
       {selectedAnomaly && (
