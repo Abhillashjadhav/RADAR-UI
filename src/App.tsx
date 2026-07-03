@@ -1,4 +1,4 @@
-import { BrowserRouter, Routes, Route } from 'react-router-dom';
+import { HashRouter, Routes, Route } from 'react-router-dom';
 import Layout from './components/Layout/Layout';
 import Dashboard from './components/Dashboard/Dashboard';
 import MapView from './components/MapView/MapView';
@@ -11,7 +11,7 @@ import { QSC_LIVE_NETWORK } from './data/liveNetworkData';
 
 function App() {
   return (
-    <BrowserRouter basename="/RADAR-UI">
+    <HashRouter>
       <Routes>
         <Route
           path="/"
@@ -83,7 +83,7 @@ function App() {
           }
         />
       </Routes>
-    </BrowserRouter>
+    </HashRouter>
   );
 }
 

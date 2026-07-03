@@ -64,7 +64,7 @@ async function main() {
   };
 
   // ---- Network view (mock) --------------------------------------------------
-  await page.goto(`${BASE}/network`, { waitUntil: 'networkidle' });
+  await page.goto(`${BASE}/#/network`, { waitUntil: 'networkidle' });
   await shot('01_network_landing.png');
 
   await page.getByRole('button', { name: 'ANALYZE' }).click();
@@ -94,7 +94,7 @@ async function main() {
   await shot('08_fulltable_lens_filtered.png');
 
   // ---- Signals ----------------------------------------------------------------
-  await page.goto(`${BASE}/signals`, { waitUntil: 'networkidle' });
+  await page.goto(`${BASE}/#/signals`, { waitUntil: 'networkidle' });
   // 09 = landing before the movers sort: toggle the default off to show recency order
   await page.getByRole('button', { name: /Biggest movers/ }).click();
   await shot('09_signals_landing.png');
@@ -115,7 +115,7 @@ async function main() {
   await shot('12_signals_drawer.png');
 
   // ---- QSC Live -----------------------------------------------------------------
-  await page.goto(`${BASE}/network-live`, { waitUntil: 'networkidle' });
+  await page.goto(`${BASE}/#/network-live`, { waitUntil: 'networkidle' });
   await page.getByRole('button', { name: 'ANALYZE' }).click();
   await settle(page, 1000);
   await shot('13_qsclive_analyzed.png');
