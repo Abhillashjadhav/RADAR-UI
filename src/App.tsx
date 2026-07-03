@@ -7,6 +7,7 @@ import TeamsCardPreview from './components/Signal/TeamsCardPreview';
 import SignalsHub from './components/Signal/SignalsHub';
 import NetworkView from './components/NetworkView/NetworkView';
 import RiskMonitor from './components/RiskMonitor/RiskMonitor';
+import ComingSoon from './components/Layout/ComingSoon';
 import { QSC_LIVE_NETWORK } from './data/liveNetworkData';
 
 function App() {
@@ -71,6 +72,14 @@ function App() {
           element={
             <Layout showAlertFeed={false} breadcrumb={['SIGNAL', 'ANOMALY FEED']}>
               <SignalsHub />
+            </Layout>
+          }
+        />
+        <Route
+          path="/soon/:feature"
+          element={
+            <Layout showAlertFeed={false} breadcrumb={['COMING SOON']}>
+              <ComingSoon />
             </Layout>
           }
         />
