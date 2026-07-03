@@ -3,6 +3,7 @@ import { X, ChevronDown, ChevronUp } from 'lucide-react';
 import type { AnalysisDimension, ParameterChange, SupplierAnalysis } from '../../types/analysis';
 import { lensDetection } from '../../data/analysisAnomalies';
 import { EventMath } from './SubFactorAttribution';
+import ParameterChart from './ParameterChart';
 import { chip, SECTION_LABEL } from '../../theme/tokens';
 
 interface Props {
@@ -55,12 +56,15 @@ function ParameterRow({ p, dim, lensDelta }: { p: ParameterChange; dim: Analysis
   );
 
   return (
-    <div className="rounded-xl border border-gray-100 bg-white p-3.5 space-y-2">
+    <div id={`param-graph-${p.parameter_id}`} className="rounded-xl border border-gray-100 bg-white p-3.5 space-y-2 scroll-mt-4">
       {/* Name + impact tag */}
       <div className="flex items-start justify-between gap-2">
         <p className="text-sm font-semibold text-gray-900 leading-snug">{p.name}</p>
         <span className={chip(p.impact_bucket)}>{p.impact_bucket}</span>
       </div>
+
+      {/* PARAMETER GRAPH — 30 days of the value in its native unit */}
+      {p.history && p.history.length > 1 && <ParameterChart param={p} height={130} />}
 
       {/* Before → After, prominent, native unit */}
       <p className="tabular-nums">
@@ -115,7 +119,8 @@ export default function ParameterDrawer({ analysis, dim, onClose }: Props) {
   const det = useMemo(() => lensDetection(dim), [dim]);
   const lensDelta = det.status === 'fired' ? det.delta : 0;
   const params = dim.parameter_changes ?? [];
-  const changed = params.filter(p => p.before !== p.after);
+  // Changed parameters ordered by contribution — largest first
+  const changed = params.filter(p => p.before !== p.after).sort((a, b) => b.contribution - a.contribution);
   const unchanged = params.filter(p => p.before === p.after);
 
   return (
