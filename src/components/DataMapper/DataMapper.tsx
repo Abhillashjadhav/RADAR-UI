@@ -5,20 +5,19 @@ import PageTitle from '../Layout/PageTitle';
 
 // Schema chips — the red-starred set is required in the customer file
 const SCHEMA_FIELDS: { name: string; required: boolean }[] = [
-  { name: 'Item Number', required: true },
-  { name: 'MPN', required: true },
-  { name: 'Supplier', required: true },
-  { name: 'Where Used', required: true },
-  { name: 'Z2 Supplier', required: false },
-  { name: 'Commodity', required: false },
-  { name: 'Z2 Commodity', required: false },
+  { name: 'Supplier Name', required: true },
+  { name: 'Supplier Location', required: true },
+  { name: 'Destination Location', required: true },
+  { name: 'Product Type', required: true },
+  { name: 'Manufacturer', required: true },
+  { name: 'Commodity', required: true },
+  { name: 'Product Description', required: true },
+  { name: 'BOM ID', required: false },
+  { name: 'Supplier ID', required: false },
+  { name: 'Product ID', required: false },
+  { name: 'Quantity', required: false },
+  { name: 'Price', required: false },
   { name: 'Facility Type', required: false },
-  { name: 'Site Owner', required: false },
-  { name: 'Item Sourcing Status', required: false },
-  { name: 'MPN Sourcing Status', required: false },
-  { name: 'Impact Score', required: false },
-  { name: 'Indicative Unit Cost (USD)', required: false },
-  { name: 'Annual Cost Exposure (USD)', required: false },
 ];
 
 /** RADAR Data Mapper — production onboarding surface (RADAR > Onboarding). */

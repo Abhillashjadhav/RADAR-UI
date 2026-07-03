@@ -37,10 +37,10 @@ export default function ChatHome() {
 
         {/* Two-tone greeting */}
         <h1 className="text-3xl font-extrabold tracking-tight mb-1.5">
-          <span className="text-gray-900">Good afternoon, </span>
-          <span className="text-amber-500">Karen</span>
+          <span className="text-gray-900">Hi User, </span>
+          <span className="text-amber-500">Ready to optimize?</span>
         </h1>
-        <p className="text-sm text-gray-500 mb-7">How can I help with your supply chain today?</p>
+        <p className="text-sm text-gray-500 mb-7">Ask a question to optimize your supply chain operations instantly.</p>
 
         {/* Input with Pro chip + gold send */}
         <div className="w-full bg-white rounded-2xl border border-gray-200 shadow-[0_1px_3px_rgba(16,24,40,0.06)] px-4 py-3 flex items-center gap-3 mb-2">
@@ -59,7 +59,7 @@ export default function ChatHome() {
 
         {/* Caution line */}
         <p className="text-[11px] text-gray-400 mb-7">
-          ForeOptics AI can make mistakes. Verify important information.
+          AI can make mistakes. Verify critical supply chain data.
         </p>
 
         {/* Five suggestion chips */}
