@@ -8,6 +8,9 @@ import SignalsHub from './components/Signal/SignalsHub';
 import NetworkView from './components/NetworkView/NetworkView';
 import RiskMonitor from './components/RiskMonitor/RiskMonitor';
 import ComingSoon from './components/Layout/ComingSoon';
+import ChatHome from './components/Home/ChatHome';
+import DataMapper from './components/DataMapper/DataMapper';
+import SupplierRiskAssessment from './components/SupplierRisk/SupplierRiskAssessment';
 import { QSC_LIVE_NETWORK } from './data/liveNetworkData';
 
 function App() {
@@ -17,8 +20,32 @@ function App() {
         <Route
           path="/"
           element={
+            <Layout showAlertFeed={false} breadcrumb={['HOME']}>
+              <ChatHome />
+            </Layout>
+          }
+        />
+        <Route
+          path="/dashboard"
+          element={
             <Layout showAlertFeed={true} breadcrumb={['RADAR', 'DASHBOARD']}>
               <Dashboard />
+            </Layout>
+          }
+        />
+        <Route
+          path="/data-mapper"
+          element={
+            <Layout showAlertFeed={false} breadcrumb={['RADAR', 'DATA MAPPER']}>
+              <DataMapper />
+            </Layout>
+          }
+        />
+        <Route
+          path="/supplier-risk"
+          element={
+            <Layout showAlertFeed={false} breadcrumb={['RADAR', 'SUPPLIER RISK ASSESSMENT']}>
+              <SupplierRiskAssessment />
             </Layout>
           }
         />

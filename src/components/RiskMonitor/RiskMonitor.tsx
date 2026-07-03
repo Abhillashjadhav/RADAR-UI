@@ -11,7 +11,6 @@ import {
   CARD, SECTION_LABEL, TH, PILL_SELECT, PASTEL, chip, scorePill, GOLD,
 } from '../../theme/tokens';
 import type { PastelKey } from '../../theme/tokens';
-import { FCoin } from '../Layout/PageTitle';
 
 // Impact bucket per lens key (matches the anomaly feed's mapping)
 const LENS_BUCKET: Record<string, 'Delivery' | 'Compliance' | 'Cost'> = {
@@ -123,7 +122,7 @@ export default function RiskMonitor() {
       {/* Title + filter pills */}
       <div className="flex items-start justify-between flex-wrap gap-3">
         <div>
-          <div className="flex items-center gap-2.5"><FCoin /><h1 className="text-2xl font-extrabold text-gray-900 tracking-tight">Risk Monitor</h1></div>
+          <h1 className="text-2xl font-extrabold text-gray-900 tracking-tight">Risk Monitor</h1>
           <p className="text-sm text-gray-500 mt-1">Production scoring — every number traces to (1 − avg sentiment) / 2 × 100</p>
         </div>
         <div className="flex items-center gap-2 flex-wrap">

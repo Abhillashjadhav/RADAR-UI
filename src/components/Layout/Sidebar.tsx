@@ -35,8 +35,8 @@ const SECTIONS: NavSection[] = [
   {
     title: 'Radar',
     items: [
-      { to: '/soon/radar-onboarding', label: 'Onboarding', icon: Rocket },
-      { to: '/supplier/SUP-001', label: 'Supplier Risk', icon: ShieldAlert },
+      { to: '/data-mapper', label: 'Onboarding', icon: Rocket },
+      { to: '/supplier-risk', label: 'Supplier Risk', icon: ShieldAlert },
       { to: '/map', label: 'Supply Chain Map', icon: Map },
       { to: '/risk-monitor', label: 'Risk Monitor', icon: Activity, badge: 2 },
       { to: '/network', label: 'Subtier Network', icon: Network },
@@ -74,7 +74,7 @@ const SECTIONS: NavSection[] = [
 ];
 
 const BOTTOM_ITEMS: NavItem[] = [
-  { to: '/', label: 'Dashboard', icon: LayoutDashboard },
+  { to: '/dashboard', label: 'Dashboard', icon: LayoutDashboard },
   { to: '/soon/buyer-dashboard', label: 'Buyer Dashboard', icon: ShoppingCart },
 ];
 
@@ -145,7 +145,7 @@ export default function Sidebar() {
           <Icon size={16} className={active ? 'text-amber-600' : ''} />
           <span className="flex-1">{label}</span>
           {badge !== undefined && (
-            <span className="w-5 h-5 rounded-full bg-amber-400 text-gray-900 text-[11px] font-bold flex items-center justify-center">
+            <span className="w-5 h-5 rounded-full bg-gray-900 text-white text-[11px] font-bold flex items-center justify-center">
               {badge}
             </span>
           )}
@@ -214,7 +214,7 @@ export default function Sidebar() {
       <button className="mx-3 mb-4 px-3 py-2.5 rounded-xl border border-gray-100 hover:bg-gray-50 flex items-center gap-2.5 transition-colors">
         <span className="w-8 h-8 rounded-full bg-gray-900 text-white text-xs font-bold flex items-center justify-center">Q</span>
         <span className="flex-1 text-left">
-          <span className="block text-sm font-semibold text-gray-900 leading-tight">QSC</span>
+          <span className="block text-sm font-semibold text-gray-900 leading-tight">qsc</span>
           <span className={SECTION_LABEL}>Client</span>
         </span>
         <ChevronsUpDown size={14} className="text-gray-300" />

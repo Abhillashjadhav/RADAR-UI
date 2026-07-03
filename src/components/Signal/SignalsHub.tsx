@@ -10,7 +10,6 @@ import RankedExceptionFeed from './RankedExceptionFeed';
 import ParameterDrawer from './ParameterDrawer';
 import { SUPPLIER_ANALYSES } from '../../data/supplierAnalysisFixtures';
 import { LENSES } from '../../data/popLens';
-import { FCoin } from '../Layout/PageTitle';
 
 // ---------------------------------------------------------------------------
 // Persistence helpers — acknowledge state in localStorage
@@ -197,7 +196,7 @@ export default function SignalsHub() {
       {/* Page header */}
       <div className="mb-6 flex items-start justify-between">
         <div>
-          <div className="flex items-center gap-2.5"><FCoin /><h1 className="text-2xl font-bold text-gray-900">Signals</h1></div>
+          <h1 className="text-2xl font-bold text-gray-900">Signals</h1>
           <p className="text-sm text-gray-500 mt-1">Anomaly feed · breakout detection across all monitored suppliers</p>
         </div>
         {activeCount > 0 && (

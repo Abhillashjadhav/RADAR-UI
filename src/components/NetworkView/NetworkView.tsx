@@ -17,7 +17,6 @@ import SubTierDetailModal from '../SupplierDetail/SubTierDetailModal';
 import { formatRevenue } from '../../types';
 import { TIER, CARD, GOLD_BTN, PILL_SELECT, SECTION_LABEL, severityOf, SEV, chip } from '../../theme/tokens';
 import { nodeMatchesLens, LENSES } from '../../data/popLens';
-import { FCoin } from '../Layout/PageTitle';
 
 // ---------------------------------------------------------------------------
 // Constants
@@ -544,7 +543,6 @@ export default function NetworkView({
       <div className="mb-5 flex items-start justify-between gap-4 flex-wrap">
         <div>
           <div className="flex items-center gap-2">
-            <FCoin />
             <h1 className="text-2xl font-extrabold text-gray-900 tracking-tight">{title}</h1>
             {isLive ? (
               <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wide bg-green-100 text-green-700">

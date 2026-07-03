@@ -1,4 +1,4 @@
-import { RefreshCw, Download } from 'lucide-react';
+import { RefreshCw, Download, LayoutGrid } from 'lucide-react';
 import { WHITE_BTN, SECTION_LABEL } from '../../theme/tokens';
 
 interface PageHeaderProps {
@@ -12,8 +12,10 @@ export default function PageHeader({ breadcrumb }: PageHeaderProps) {
 
   return (
     <>
-      {/* Thin charcoal strip */}
-      <div className="h-2 bg-[#1F2430] w-full" />
+      {/* Charcoal strip — grid glyph far left */}
+      <div className="h-8 bg-[#1F2430] w-full flex items-center px-3">
+        <LayoutGrid size={14} className="text-gray-400" />
+      </div>
 
       {/* Breadcrumb row */}
       <div className="flex items-center justify-between px-6 py-3 bg-white border-b border-gray-100">
