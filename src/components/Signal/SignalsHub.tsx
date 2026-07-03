@@ -7,6 +7,7 @@ import { formatRevenueAtRisk, lensHumanLabel, severityTokens } from './signalUi'
 import { sampleSignal } from '../../data/sample-signal';
 import AnomalyDrawer from './AnomalyDrawer';
 import RankedExceptionFeed from './RankedExceptionFeed';
+import { LENSES } from '../../data/popLens';
 
 // ---------------------------------------------------------------------------
 // Persistence helpers — acknowledge state in localStorage
@@ -116,6 +117,8 @@ export default function SignalsHub() {
   const [selectedAnomaly, setSelectedAnomaly] = useState<Anomaly | null>(null);
   const [impactFilter, setImpactFilter] = useState<'all' | 'delivery' | 'compliance' | 'cost'>('all');
   const [verifiedFilter, setVerifiedFilter] = useState<'all' | 'verified' | 'unverified'>('all');
+  const [lensFilter, setLensFilter] = useState<string>('all'); // 12-lens key or 'all'
+  const [biggestMovers, setBiggestMovers] = useState(true);    // default: delta desc, reds on top
   const [showAcknowledged, setShowAcknowledged] = useState(false);
 
   // Acknowledge state — read from localStorage + seed data on each render
@@ -140,9 +143,15 @@ export default function SignalsHub() {
     if (impactFilter !== 'all') list = list.filter(a => a.impactBucket === impactFilter);
     if (verifiedFilter === 'verified') list = list.filter(a => a.verified);
     if (verifiedFilter === 'unverified') list = list.filter(a => !a.verified);
+    if (lensFilter !== 'all') list = list.filter(a => a.lens === lensFilter);
 
-    return list;
-  }, [impactFilter, verifiedFilter, showAcknowledged, acknowledged]);
+    // "Which suppliers are higher risk this week than last" — delta desc by default
+    return [...list].sort((a, b) =>
+      biggestMovers
+        ? (b.scoreAfter - b.scoreBaseline) - (a.scoreAfter - a.scoreBaseline)
+        : (b.breakDate || '').localeCompare(a.breakDate || ''),
+    );
+  }, [impactFilter, verifiedFilter, lensFilter, biggestMovers, showAcknowledged, acknowledged]);
 
   return (
     <div className="p-6 max-w-screen-xl mx-auto">
@@ -222,6 +231,27 @@ export default function SignalsHub() {
                 </button>
               ))}
             </div>
+            <select
+              value={lensFilter}
+              onChange={e => setLensFilter(e.target.value)}
+              aria-label="Lens filter"
+              className={`px-2.5 py-1 text-xs font-medium rounded-md border transition-colors ${
+                lensFilter !== 'all' ? 'bg-amber-400 border-amber-400 text-gray-900' : 'bg-white border-gray-300 text-gray-600'
+              }`}
+            >
+              <option value="all">All Lenses</option>
+              {LENSES.map(l => (
+                <option key={l.key} value={l.key}>{l.label}</option>
+              ))}
+            </select>
+            <button
+              onClick={() => setBiggestMovers(m => !m)}
+              className={`px-2.5 py-1 text-xs font-medium rounded-md transition-colors ${
+                biggestMovers ? 'bg-amber-400 text-gray-900' : 'bg-white border border-gray-300 text-gray-600 hover:bg-gray-50'
+              }`}
+            >
+              ▲ Biggest movers
+            </button>
             <label className="flex items-center gap-1.5 text-xs text-gray-500 ml-2 cursor-pointer select-none">
               <input
                 type="checkbox"
