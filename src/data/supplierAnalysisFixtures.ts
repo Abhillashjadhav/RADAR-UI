@@ -26,6 +26,48 @@ export const LENSES: { key: string; abbr: string; label: string }[] = [
   { key: 'digital_transformation', abbr: 'DIG', label: 'Digital Transformation' },
 ];
 
+// Parameter-history shorthand — 30 daily points ending at REF_DATE, in the
+// parameter's NATIVE unit. Deterministic (no randomness) so fixtures are stable.
+function histDates(days = 30): string[] {
+  const out: string[] = [];
+  const ref = new Date(REF_DATE);
+  for (let i = days - 1; i >= 0; i--) {
+    const d = new Date(ref);
+    d.setDate(d.getDate() - i);
+    out.push(d.toISOString().slice(0, 10));
+  }
+  return out;
+}
+
+/** Flat at `before`, stepping to `after` on `changeDate` (binary + tariff shapes). */
+const stepHist = (before: number, after: number, changeDate: string) =>
+  histDates().map(date => ({ date, value: date < changeDate ? before : after }));
+
+/** Drift linearly start→driftTo across the pre-change window, then jump to `after`. */
+const driftStepHist = (start: number, driftTo: number, after: number, changeDate: string) => {
+  const dates = histDates();
+  const preCount = Math.max(1, dates.filter(d => d < changeDate).length);
+  return dates.map((date, i) =>
+    date < changeDate
+      ? { date, value: Math.round(start + ((driftTo - start) * i) / (preCount - 1 || 1)) }
+      : { date, value: after });
+};
+
+/** Rise linearly from `before` to `after` starting on `changeDate` (gradual shape). */
+const gradualHist = (before: number, after: number, changeDate: string) => {
+  const dates = histDates();
+  const riseIdx = dates.findIndex(d => d >= changeDate);
+  return dates.map((date, i) => {
+    if (riseIdx < 0 || i < riseIdx) return { date, value: before };
+    const span = Math.max(1, dates.length - 1 - riseIdx);
+    return { date, value: Math.round(before + ((after - before) * (i - riseIdx)) / span) };
+  });
+};
+
+/** Deterministic wobble around `center` ± `amp` — the no-change shape. */
+const wobbleHist = (center: number, amp: number) =>
+  histDates().map((date, i) => ({ date, value: Math.round(center + Math.sin(i * 1.7) * amp) }));
+
 // Event shorthand ---------------------------------------------------------------
 const ev = (
   occurred_at: string, sub_factor: string, sentiment: number, news: string,
@@ -109,6 +151,7 @@ const VTECH = buildAnalysis('SUPA-001', 'VTECH (DONGGUAN)', 'Dongguan, China', 2
       contribution: 8.4, impact_bucket: 'cost',
       event_ids: ['EV-GPS-2', 'EV-GPS-6'],
       implication: 'Landed cost on affected parts rises; check Cost impact bucket.',
+      history: stepHist(10, 50, '2026-06-24'),
     },
     {
       parameter_id: 'PRM-GPS-MARITIME',
@@ -117,6 +160,7 @@ const VTECH = buildAnalysis('SUPA-001', 'VTECH (DONGGUAN)', 'Dongguan, China', 2
       contribution: 6.7, impact_bucket: 'delivery',
       event_ids: ['EV-GPS-3', 'EV-GPS-4', 'EV-GPS-5'],
       implication: 'Transit +9 days on rerouted lanes; expect delivery slips on sea freight.',
+      history: driftStepHist(35, 38, 72, '2026-06-21'),
     },
     {
       parameter_id: 'PRM-GPS-EXPCTL',
@@ -125,6 +169,7 @@ const VTECH = buildAnalysis('SUPA-001', 'VTECH (DONGGUAN)', 'Dongguan, China', 2
       contribution: 3.1, impact_bucket: 'compliance',
       event_ids: ['EV-GPS-6'],
       implication: 'New dual-use license rule covers RF modules; license lead time applies.',
+      history: gradualHist(44, 51, '2026-06-26'),
     },
   ],
   // no change in window — drawer must still render current values
@@ -136,6 +181,7 @@ const VTECH = buildAnalysis('SUPA-001', 'VTECH (DONGGUAN)', 'Dongguan, China', 2
       contribution: 0, impact_bucket: 'delivery',
       event_ids: ['EV-LOG-1', 'EV-LOG-2'],
       implication: 'Yard density elevated but steady; no new delivery impact this window.',
+      history: wobbleHist(62, 2),
     },
   ],
 });
@@ -185,6 +231,7 @@ const GOLDENBAMBOO = buildAnalysis('SUPA-002', 'GOLDENBAMBOO', 'Shenzhen, China'
       contribution: 13.7, impact_bucket: 'compliance',
       event_ids: ['EV-ESG-5', 'EV-ESG-6', 'EV-ESG-7', 'EV-ESG-8', 'EV-ESG-9'],
       implication: 'Shipments detainable at US entry; hold affected lots pending clearance.',
+      history: stepHist(0, 1, '2026-06-24'),
     },
     {
       parameter_id: 'PRM-ESG-EMISSIONS',
@@ -193,6 +240,7 @@ const GOLDENBAMBOO = buildAnalysis('SUPA-002', 'GOLDENBAMBOO', 'Shenzhen, China'
       contribution: 6.2, impact_bucket: 'cost',
       event_ids: ['EV-ESG-10', 'EV-ESG-11'],
       implication: 'Scrubber remediation likely; expect pass-through cost on affected lines.',
+      history: stepHist(12, 38, '2026-06-26'),
     },
   ],
 });

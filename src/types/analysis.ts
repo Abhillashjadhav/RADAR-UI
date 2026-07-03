@@ -32,6 +32,9 @@ export interface ParameterChange {
   impact_bucket: 'delivery' | 'compliance' | 'cost';
   event_ids: string[];                       // evidence events backing the change
   implication: string;                       // one-line plain-language consequence
+  /** 30 daily points of the parameter's value in its NATIVE unit (not the
+   *  0–100 lens score). Backend-suppliable; optional in older exports. */
+  history?: { date: string; value: number }[];
 }
 
 export interface AnalysisDimension {
