@@ -100,6 +100,94 @@ export function attributeDelta(baseline: AnalysisEvent[], recent: AnalysisEvent[
     .sort((a, b) => Math.abs(b.contribution) - Math.abs(a.contribution));
 }
 
+// ---------------------------------------------------------------------------
+// Layer 1 — DETECTION (lens level). The unit is the supplier × lens score,
+// one stored run per day. Baseline = trailing 30 days of runs; the band is
+// mean ± 2σ, with a ≥15% relative-jump rule for spikes — whichever fires
+// first. Lenses without event data never fire and never form baselines;
+// fewer than 30 days of history → "Baseline building (N/30)", no fire.
+// ---------------------------------------------------------------------------
+export const BASELINE_DAYS = 30;
+export const RELATIVE_JUMP = 0.15;
+
+export interface LensDetection {
+  status: 'no_data' | 'building' | 'stable' | 'fired';
+  daysOfHistory: number;        // days since the first stored run
+  baselineMean: number;         // mean of the trailing baseline runs
+  sigma: number;                // σ of the baseline runs
+  bandLow: number;              // mean − 2σ (display-floored)
+  bandHigh: number;             // mean + 2σ (display-floored)
+  scoreBaseline: number;        // last stable run value (attribution anchor)
+  latest: number;               // latest run = production lens score
+  delta: number;                // latest − scoreBaseline
+  firedBy?: 'band' | 'relative_jump';
+  baselineEvents: AnalysisEvent[];
+  newEvents: AnalysisEvent[];
+}
+
+const dayDiff = (a: string, b: string) =>
+  Math.round((new Date(a).getTime() - new Date(b).getTime()) / 86_400_000);
+
+export function detectLens(events: AnalysisEvent[], refDate: string): LensDetection {
+  const empty: LensDetection = {
+    status: 'no_data', daysOfHistory: 0, baselineMean: NEUTRAL_FALLBACK, sigma: 0,
+    bandLow: NEUTRAL_FALLBACK, bandHigh: NEUTRAL_FALLBACK, scoreBaseline: NEUTRAL_FALLBACK,
+    latest: NEUTRAL_FALLBACK, delta: 0, baselineEvents: [], newEvents: [],
+  };
+  if (events.length === 0) return empty; // no event data → never fires, no baseline
+
+  const dated = events.filter(e => e.occurred_at);
+  const firstDate = dated.length
+    ? dated.map(e => e.occurred_at!).sort()[0]
+    : refDate;
+  const daysOfHistory = Math.max(0, dayDiff(refDate, firstDate));
+
+  const { baseline, recent } = splitByBreakWindow(events, refDate);
+  const latest = lensScore(events);
+  const scoreBaseline = baseline.length ? lensScore(baseline) : latest;
+  const delta = round1(latest - scoreBaseline);
+
+  // Trailing baseline runs: one score per day over the stable period
+  // (ending the day before the first in-window event so the break itself
+  // doesn't contaminate its own baseline).
+  const baselineEnd = recent.length
+    ? recent.map(e => e.occurred_at!).sort()[0]
+    : refDate;
+  const runs: number[] = [];
+  const end = new Date(baselineEnd);
+  for (let i = BASELINE_DAYS; i >= 1; i--) {
+    const d = new Date(end);
+    d.setDate(d.getDate() - i);
+    const iso = d.toISOString().slice(0, 10);
+    if (iso < firstDate) continue; // runs exist only once history exists
+    runs.push(lensScore(events.filter(e => !e.occurred_at || e.occurred_at <= iso)));
+  }
+  const mean = runs.length ? runs.reduce((s, v) => s + v, 0) / runs.length : scoreBaseline;
+  const sigma = runs.length
+    ? Math.sqrt(runs.reduce((s, v) => s + (v - mean) ** 2, 0) / runs.length)
+    : 0;
+  const sigmaDisp = Math.max(sigma, 1.5); // keep the band visible when σ ≈ 0
+
+  const base = {
+    daysOfHistory,
+    baselineMean: round1(mean), sigma: round1(sigma),
+    bandLow: Math.max(0, Math.round(mean - 2 * sigmaDisp)),
+    bandHigh: Math.min(100, Math.round(mean + 2 * sigmaDisp)),
+    scoreBaseline, latest, delta,
+    baselineEvents: baseline, newEvents: recent,
+  };
+
+  // Fewer than 30 days of stored runs → baseline still building, never fire
+  if (daysOfHistory < BASELINE_DAYS) return { ...base, status: 'building' };
+  if (recent.length === 0) return { ...base, status: 'stable' };
+
+  const outOfBand = latest > mean + 2 * sigma || latest < mean - 2 * sigma;
+  const relJump = mean > 0 && Math.abs(latest - mean) / mean >= RELATIVE_JUMP;
+  if (outOfBand) return { ...base, status: 'fired', firedBy: 'band' };
+  if (relJump) return { ...base, status: 'fired', firedBy: 'relative_jump' };
+  return { ...base, status: 'stable' };
+}
+
 /** Daily score history for a lens: score of all events dated ≤ each day. */
 export function scoreHistory(events: AnalysisEvent[], refDate: string, days = 60): { date: string; value: number }[] {
   const out: { date: string; value: number }[] = [];

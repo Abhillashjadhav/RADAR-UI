@@ -1,18 +1,18 @@
 // ---------------------------------------------------------------------------
 // Anomaly feed derived from the production fixtures.
 //
-// DETECTION runs on the score: baseline = lens score of events older than the
-// break window; current = score of all events; fires when the delta breaks the
-// band. ATTRIBUTION runs on the sub_factor: the delta is split across the new
-// events' sub-factor groups (see scoring.attributeDelta).
+// Layer 1 — DETECTION (lens level): supplier × lens score vs its own trailing
+// 30-day run baseline (mean ± 2σ, or ≥15% relative jump — whichever fires
+// first). No-event lenses never fire; <30 days history → baseline building.
+// Layer 2 — ATTRIBUTION (parameter level): the fired delta is split across
+// the new events' sub_factor groups. Never the reverse.
 // ---------------------------------------------------------------------------
 import type { Anomaly } from './anomalyMockData';
 import type { ImpactBucket, RiskLens } from '../types/signal';
 import type { SupplierAnalysis, AnalysisDimension } from '../types/analysis';
 import { SUPPLIER_ANALYSES, REF_DATE } from './supplierAnalysisFixtures';
-import { splitByBreakWindow, attributeDelta, lensScore, scoreHistory } from './scoring';
-
-const MIN_BREAK_DELTA = 5; // points above baseline that trips the detector
+import { detectLens, attributeDelta, scoreHistory, BASELINE_DAYS } from './scoring';
+import type { LensDetection } from './scoring';
 
 const LENS_BUCKET: Record<string, ImpactBucket> = {
   geopolitical: 'delivery', logistics_transport: 'delivery',
@@ -27,17 +27,20 @@ const SUPPLIER_TIER: Record<string, number> = {
   'LITTELFUSE': 2, // sub-tier choke point; everyone else tier 1
 };
 
+/** Detection status for any dimension — drives the lens-grid badges. */
+export function lensDetection(d: AnalysisDimension): LensDetection {
+  return detectLens(d.events, REF_DATE);
+}
+
+export { BASELINE_DAYS };
+
 function toAnomaly(a: SupplierAnalysis, d: AnalysisDimension): Anomaly | null {
-  const { baseline, recent } = splitByBreakWindow(d.events, REF_DATE);
-  if (recent.length === 0) return null;
+  const det = detectLens(d.events, REF_DATE);
+  if (det.status !== 'fired') return null;
 
-  const before = lensScore(baseline);
-  const after = d.score; // all events — already the production lens score
-  if (after - before < MIN_BREAK_DELTA) return null;
-
-  const attribution = attributeDelta(baseline, recent);
-  const breakDate = [...recent].map(e => e.occurred_at!).sort()[0];
-  const verified = recent.every(e => e.news_link.trim() !== '');
+  const attribution = attributeDelta(det.baselineEvents, det.newEvents);
+  const breakDate = det.newEvents.map(e => e.occurred_at!).sort()[0];
+  const verified = det.newEvents.every(e => e.news_link.trim() !== '');
 
   return {
     id: `ANM-${a.id}-${d.abbr}`,
@@ -49,21 +52,24 @@ function toAnomaly(a: SupplierAnalysis, d: AnalysisDimension): Anomaly | null {
     impactBucket: LENS_BUCKET[d.key] ?? 'delivery',
     revenueAtRiskUsd: a.revenueImpact,
     costExposureUsd: a.revenueImpact,
-    scoreBaseline: before,
-    scoreAfter: after,
+    scoreBaseline: det.scoreBaseline,
+    scoreAfter: det.latest,   // the score is the STATE; the badge is the anomaly
     breakDate,
     breakdown: {
-      baselineLevel: before,
-      breakLift: Math.round((after - before) * 10) / 10,
+      baselineLevel: det.scoreBaseline,
+      breakLift: det.delta,
       recencyWeight: 0,
-      displayedScore: after,
-      recencyNote: `Computed from ${d.event_count} events: (1 − avg sentiment) / 2 × 100.`,
+      displayedScore: det.latest,
+      recencyNote: det.firedBy === 'relative_jump'
+        ? `Fired by relative jump ≥15% vs 30-day baseline mean ${det.baselineMean}.`
+        : `Fired by band break: outside mean ${det.baselineMean} ± 2σ (σ=${det.sigma}).`,
     },
-    history: scoreHistory(d.events, REF_DATE, 60),
-    bandLow: Math.max(0, Math.round(before - 7)),
-    bandHigh: Math.min(100, Math.round(before + 7)),
-    provisionalBaseline: baseline.length < 2,
-    sources: recent.map(e => ({ label: e.news, url: e.news_link })),
+    // Chart shows the last 30 days of stored runs — the proof of anomaly
+    history: scoreHistory(d.events, REF_DATE, BASELINE_DAYS + det.newEvents.length + 2),
+    bandLow: det.bandLow,
+    bandHigh: det.bandHigh,
+    provisionalBaseline: false, // <30d histories never fire at all now
+    sources: det.newEvents.map(e => ({ label: e.news, url: e.news_link })),
     verified,
     status: 'active',
     attribution,
@@ -72,7 +78,7 @@ function toAnomaly(a: SupplierAnalysis, d: AnalysisDimension): Anomaly | null {
   };
 }
 
-/** The live anomaly feed — every entry traces to fixture events. */
+/** The live anomaly feed — every entry fired by the 30-day baseline detector. */
 export const ANOMALIES: Anomaly[] = SUPPLIER_ANALYSES.flatMap(a =>
   a.dimensions
     .filter(d => d.has_event_data)
