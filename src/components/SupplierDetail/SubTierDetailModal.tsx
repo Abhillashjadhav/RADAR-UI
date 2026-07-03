@@ -4,6 +4,7 @@ import type { SubTierFullNode } from '../../data/subtierMockData';
 import { flattenNetwork } from '../../data/subtierMockData';
 import type { PriorityNode } from '../../utils/selectPrioritySuppliers';
 import { formatRevenue } from '../../types';
+import { popChangeFor, lensFor, nodeMatchesLens, LENSES } from '../../data/popLens';
 
 interface SubTierDetailModalProps {
   root: SubTierFullNode;
@@ -13,7 +14,7 @@ interface SubTierDetailModalProps {
   exposureLabel?: string;
 }
 
-type SortKey = 'tier' | 'name' | 'riskScore' | 'revenueAtRisk';
+type SortKey = 'tier' | 'name' | 'riskScore' | 'revenueAtRisk' | 'pop';
 type SortDir = 'asc' | 'desc';
 
 const impactBadge: Record<string, string> = {
@@ -26,6 +27,7 @@ export default function SubTierDetailModal({ root, prioritySet, onClose, exposur
   const [search, setSearch] = useState('');
   const [tierFilter, setTierFilter] = useState<'all' | '1' | '2' | '3' | '4' | '5'>('all');
   const [impactFilter, setImpactFilter] = useState<'all' | 'Delivery' | 'Compliance' | 'Cost'>('all');
+  const [lensFilter, setLensFilter] = useState<string>('all'); // 12-lens key or 'all'
   const [sortKey, setSortKey] = useState<SortKey>('tier');
   const [sortDir, setSortDir] = useState<SortDir>('asc');
 
@@ -52,19 +54,32 @@ export default function SubTierDetailModal({ root, prioritySet, onClose, exposur
       filtered = filtered.filter(n => n.primaryImpact === impactFilter);
     }
 
+    if (lensFilter !== 'all') {
+      filtered = filtered.filter(n => nodeMatchesLens(n.name, n.topRiskLens, lensFilter));
+    }
+
     return [...filtered].sort((a, b) => {
       let cmp = 0;
       if (sortKey === 'tier') cmp = a.tier - b.tier;
       else if (sortKey === 'name') cmp = a.name.localeCompare(b.name);
       else if (sortKey === 'riskScore') cmp = a.riskScore - b.riskScore;
       else if (sortKey === 'revenueAtRisk') cmp = (a.revenueAtRisk ?? -1) - (b.revenueAtRisk ?? -1);
+      else if (sortKey === 'pop') {
+        // no-history rows always sink to the bottom, whichever direction
+        const pa = popChangeFor(a.name); const pb = popChangeFor(b.name);
+        if (pa === null && pb === null) return 0;
+        if (pa === null) return 1;
+        if (pb === null) return -1;
+        cmp = pa - pb;
+      }
       return sortDir === 'asc' ? cmp : -cmp;
     });
-  }, [allRows, search, tierFilter, impactFilter, sortKey, sortDir]);
+  }, [allRows, search, tierFilter, impactFilter, lensFilter, sortKey, sortDir]);
 
   const toggleSort = (key: SortKey) => {
     if (sortKey === key) setSortDir(d => (d === 'asc' ? 'desc' : 'asc'));
-    else { setSortKey(key); setSortDir('asc'); }
+    // POP starts descending so the biggest movers surface on top ("reds on top")
+    else { setSortKey(key); setSortDir(key === 'pop' ? 'desc' : 'asc'); }
   };
 
   const SortIcon = ({ k }: { k: SortKey }) => (
@@ -74,7 +89,7 @@ export default function SubTierDetailModal({ root, prioritySet, onClose, exposur
   );
 
   const exportCSV = () => {
-    const header = ['Tier', 'Supplier', 'City', 'Country', 'ZIP', 'Commodity', 'Risk Score', 'Impact', `${exposureLabel} ($M)`, 'Exposure Status', 'Cost Estimated', 'SPOF', 'Choke Point', 'Priority'];
+    const header = ['Tier', 'Supplier', 'City', 'Country', 'ZIP', 'Commodity', 'Lens', 'Risk Score', 'POP Change', 'Impact', `${exposureLabel} ($M)`, 'Exposure Status', 'Cost Estimated', 'SPOF', 'Choke Point', 'Priority'];
     const rowData = allRows.map(n => [
       `T${n.tier}`,
       n.name,
@@ -82,7 +97,9 @@ export default function SubTierDetailModal({ root, prioritySet, onClose, exposur
       n.location.country,
       n.location.zip ?? '',
       n.commodity,
+      lensFor(n.name)?.label ?? n.topRiskLensLabel,
       n.riskScore,
+      popChangeFor(n.name) ?? '',
       n.primaryImpact,
       n.revenueAtRisk !== null ? n.revenueAtRisk.toFixed(4) : '',
       n.revenueAtRisk !== null ? 'known' : 'insufficient data',
@@ -178,6 +195,20 @@ export default function SubTierDetailModal({ root, prioritySet, onClose, exposur
             ))}
           </div>
 
+          <select
+            value={lensFilter}
+            onChange={e => setLensFilter(e.target.value)}
+            aria-label="Lens filter"
+            className={`px-2.5 py-1.5 text-xs font-medium rounded-md border transition-colors ${
+              lensFilter !== 'all' ? 'bg-amber-400 border-amber-400 text-gray-900' : 'bg-white border-gray-300 text-gray-600'
+            }`}
+          >
+            <option value="all">All Lenses</option>
+            {LENSES.map(l => (
+              <option key={l.key} value={l.key}>{l.label}</option>
+            ))}
+          </select>
+
           <span className="text-xs text-gray-400 ml-auto">{rows.length} of {allRows.length} shown</span>
         </div>
 
@@ -204,11 +235,20 @@ export default function SubTierDetailModal({ root, prioritySet, onClose, exposur
                 <th className="px-4 py-2.5 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">
                   Commodity
                 </th>
+                <th className="px-4 py-2.5 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">
+                  Lens
+                </th>
                 <th
                   className="px-4 py-2.5 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider cursor-pointer hover:text-gray-900 select-none"
                   onClick={() => toggleSort('riskScore')}
                 >
                   Risk Score <SortIcon k="riskScore" />
+                </th>
+                <th
+                  className="px-4 py-2.5 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider cursor-pointer hover:text-gray-900 select-none"
+                  onClick={() => toggleSort('pop')}
+                >
+                  POP Change <SortIcon k="pop" />
                 </th>
                 <th className="px-4 py-2.5 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">
                   Impact
@@ -262,9 +302,31 @@ export default function SubTierDetailModal({ root, prioritySet, onClose, exposur
                     </td>
                     <td className="px-4 py-2.5 text-gray-600">{node.commodity}</td>
                     <td className="px-4 py-2.5">
+                      {(() => {
+                        const lens = lensFor(node.name);
+                        if (lens) {
+                          return (
+                            <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-amber-50 text-amber-700 border border-amber-200">
+                              {lens.label}
+                            </span>
+                          );
+                        }
+                        return <span className="text-xs text-gray-400">{node.topRiskLensLabel}</span>;
+                      })()}
+                    </td>
+                    <td className="px-4 py-2.5">
                       <span className={`inline-flex items-center justify-center w-10 h-7 rounded font-bold tabular-nums text-xs ${scoreColor}`}>
                         {node.riskScore}
                       </span>
+                    </td>
+                    <td className="px-4 py-2.5 tabular-nums">
+                      {(() => {
+                        const pop = popChangeFor(node.name);
+                        if (pop === null) return <span className="text-gray-300">—</span>;
+                        if (pop > 0) return <span className="text-xs font-bold text-red-600">▲ +{pop}</span>;
+                        if (pop < 0) return <span className="text-xs font-bold text-green-600">▼ {pop}</span>;
+                        return <span className="text-xs font-semibold text-gray-400">0</span>;
+                      })()}
                     </td>
                     <td className="px-4 py-2.5">
                       <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${impactBadge[node.primaryImpact] ?? ''}`}>
