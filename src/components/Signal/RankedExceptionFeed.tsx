@@ -135,7 +135,7 @@ export default function RankedExceptionFeed({ anomalies, onSelect }: Props) {
               <th
                 className="px-4 py-2.5 text-left text-xs font-semibold text-gray-500 cursor-pointer hover:text-gray-800 select-none"
                 onClick={() => toggleSort('score')}
-              >Score <SortIcon k="score" /></th>
+              >Lens Reading <SortIcon k="score" /></th>
               <th
                 className="px-4 py-2.5 text-left text-xs font-semibold text-gray-500 cursor-pointer hover:text-gray-800 select-none"
                 onClick={() => toggleSort('delta')}

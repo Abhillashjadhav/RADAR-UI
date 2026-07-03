@@ -100,7 +100,7 @@ export function EventMath({ events, score }: { events: AnalysisEvent[]; score: n
 
   return (
     <div className="rounded-xl border border-gray-200 bg-white p-4">
-      <p className={`${SECTION_LABEL} mb-3`}>Score math — computed from events</p>
+      <p className={`${SECTION_LABEL} mb-3`}>Lens reading math — computed from events</p>
       <ul className="space-y-2 mb-3">
         {events.map((e, i) => (
           <li key={i} className="flex items-start gap-2 text-xs">

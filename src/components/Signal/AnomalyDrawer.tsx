@@ -68,7 +68,7 @@ function LensContext({ dim }: { dim: AnalysisDimension }) {
         <span>
           <strong>Baseline building ({det.daysOfHistory}/{BASELINE_DAYS} days)</strong> — anomaly
           detection needs {BASELINE_DAYS} days of stored runs for this lens before it can fire.
-          Score {det.latest} is the current state, not an anomaly.
+          Lens reading {det.latest} is the current state, not an anomaly.
         </span>
       </div>
     );
@@ -76,7 +76,7 @@ function LensContext({ dim }: { dim: AnalysisDimension }) {
   if (det.status === 'fired') {
     return (
       <div className="rounded-xl border border-gray-200 bg-white px-4 py-3 text-xs text-gray-500">
-        Lens score <span className="font-bold text-gray-800 tabular-nums">{det.latest}</span> fired by{' '}
+        Lens reading <span className="font-bold text-gray-800 tabular-nums">{det.latest}</span> fired by{' '}
         {det.firedBy === 'relative_jump' ? 'relative jump ≥15%' : 'band break'} — 30-day mean{' '}
         <span className="tabular-nums">{det.baselineMean}</span> ± 2σ (σ={det.sigma}), band {det.bandLow}–{det.bandHigh}.
       </div>
@@ -84,7 +84,7 @@ function LensContext({ dim }: { dim: AnalysisDimension }) {
   }
   return (
     <div className="rounded-xl border border-gray-200 bg-white px-4 py-3 text-xs text-gray-500">
-      No anomaly — latest score <span className="font-bold text-gray-800 tabular-nums">{det.latest}</span> sits
+      No anomaly — latest reading <span className="font-bold text-gray-800 tabular-nums">{det.latest}</span> sits
       inside the 30-day band ({det.bandLow}–{det.bandHigh}, baseline mean {det.baselineMean}).
     </div>
   );
@@ -173,7 +173,7 @@ export default function AnomalyDrawer({ anomaly, onClose, onAcknowledge }: Props
           {/* Key metrics — score is the STATE; the badge is the anomaly */}
           <div className="grid grid-cols-3 gap-3">
             <div className="bg-white border border-gray-100 rounded-xl p-3">
-              <p className="text-xs text-gray-500 mb-1">Score</p>
+              <p className="text-xs text-gray-500 mb-1">Lens Reading</p>
               <p className="text-xl font-bold text-gray-900 tabular-nums">{anomaly.scoreAfter}</p>
               {delta !== 0 && (
                 <span className={`inline-flex items-center mt-1 px-1.5 py-0.5 rounded text-[11px] font-bold tabular-nums ${

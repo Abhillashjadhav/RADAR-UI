@@ -147,7 +147,7 @@ export default function ParameterDrawer({ analysis, dim, onClose }: Props) {
                 </span>
               )}
             </h2>
-            <p className="text-xs text-gray-400">Score {det.latest} · parameter-level attribution</p>
+            <p className="text-xs text-gray-400">Lens reading {det.latest} · parameter-level attribution</p>
           </div>
           <button onClick={onClose} className="p-1.5 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-lg" aria-label="Close">
             <X size={18} />

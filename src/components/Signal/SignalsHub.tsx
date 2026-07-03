@@ -308,8 +308,8 @@ export default function SignalsHub() {
               <thead className="bg-gray-50 border-b border-gray-100">
                 <tr>
                   <th className="px-4 py-2.5 text-left text-xs font-semibold text-gray-500">Supplier</th>
-                  <th className="px-4 py-2.5 text-left text-xs font-semibold text-gray-500">Risk Factor</th>
-                  <th className="px-4 py-2.5 text-left text-xs font-semibold text-gray-500">Score</th>
+                  <th className="px-4 py-2.5 text-left text-xs font-semibold text-gray-500">Risk Lens</th>
+                  <th className="px-4 py-2.5 text-left text-xs font-semibold text-gray-500">Lens Reading</th>
                   <th className="px-4 py-2.5 text-left text-xs font-semibold text-gray-500">Impact</th>
                   <th className="px-4 py-2.5 text-left text-xs font-semibold text-gray-500">Revenue at Risk</th>
                   <th className="px-4 py-2.5 text-left text-xs font-semibold text-gray-500">Break Date</th>
