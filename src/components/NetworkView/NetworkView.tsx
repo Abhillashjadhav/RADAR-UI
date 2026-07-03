@@ -16,6 +16,7 @@ import { buildParentMap, pathToRoot } from '../../utils/buildParentMap';
 import SubTierDetailModal from '../SupplierDetail/SubTierDetailModal';
 import { formatRevenue } from '../../types';
 import { TIER, CARD, GOLD_BTN, PILL_SELECT, SECTION_LABEL, severityOf, SEV, chip } from '../../theme/tokens';
+import { nodeMatchesLens, LENSES } from '../../data/popLens';
 
 // ---------------------------------------------------------------------------
 // Constants
@@ -467,6 +468,7 @@ export default function NetworkView({
   const [expandedBadges, setExpandedBadges] = useState<Set<string>>(new Set());
   const [showModal, setShowModal] = useState(false);
   const [graphFilter, setGraphFilter] = useState<GraphFilter>('all');
+  const [lensFilter, setLensFilter] = useState<string>('all'); // 12-lens key or 'all'
   const [zoom, setZoom] = useState(1);
 
   const isLive = dataSource === 'live';
@@ -487,15 +489,19 @@ export default function NetworkView({
     insufficientDataCount, coverageAchieved, caption,
   } = result;
 
-  // Graph filter narrows what is DRAWN, not what is selected
+  // Graph filters narrow what is DRAWN — coverage selection itself is unchanged
   const visibleSet = useMemo(() => {
+    let set = prioritySet;
     switch (graphFilter) {
-      case 'critical': return prioritySet.filter(p => p.node.riskScore >= 70);
-      case 'high':     return prioritySet.filter(p => p.node.riskScore >= 40);
-      case 'spof':     return prioritySet.filter(p => p.node.isSPOF);
-      default:         return prioritySet;
+      case 'critical': set = set.filter(p => p.node.riskScore >= 70); break;
+      case 'high':     set = set.filter(p => p.node.riskScore >= 40); break;
+      case 'spof':     set = set.filter(p => p.node.isSPOF); break;
     }
-  }, [prioritySet, graphFilter]);
+    if (lensFilter !== 'all') {
+      set = set.filter(p => nodeMatchesLens(p.node.name, p.node.topRiskLens, lensFilter));
+    }
+    return set;
+  }, [prioritySet, graphFilter, lensFilter]);
 
   const priorityMap = useMemo(() => new Map(visibleSet.map(p => [p.node.id, p])), [visibleSet]);
   const priorityIds = useMemo(() => new Set(priorityMap.keys()), [priorityMap]);
@@ -673,6 +679,20 @@ export default function NetworkView({
                   {label}
                 </button>
               ))}
+              <span className="w-px h-4 bg-gray-200 mx-0.5" />
+              <select
+                value={lensFilter}
+                onChange={e => { setLensFilter(e.target.value); setSelectedNodeId(null); }}
+                aria-label="Lens filter"
+                className={`px-2 py-1 rounded-full text-[11px] font-bold uppercase tracking-wide border-0 focus:outline-none cursor-pointer ${
+                  lensFilter !== 'all' ? 'bg-amber-400 text-gray-900' : 'bg-transparent text-gray-500'
+                }`}
+              >
+                <option value="all">All Lenses</option>
+                {LENSES.map(l => (
+                  <option key={l.key} value={l.key}>{l.label}</option>
+                ))}
+              </select>
               <span className="w-px h-4 bg-gray-200 mx-0.5" />
               <button onClick={() => setZoom(z => Math.min(1.6, z + 0.2))} className="p-1 text-gray-500 hover:text-gray-800" aria-label="Zoom in">
                 <ZoomIn size={14} />
