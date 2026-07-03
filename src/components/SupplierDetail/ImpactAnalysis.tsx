@@ -17,7 +17,7 @@ export default function ImpactAnalysis({ supplier }: ImpactAnalysisProps) {
   const contextualIntelligence = [
     `${supplier.name} supplies PCBs for your QX-400 avionics module`,
     'Current inventory: 45 days. Lead time extension exceeds buffer.',
-    'Customer delivery commitments at risk for Boeing (PO #89234) and Airbus (PO #89567)',
+    'Customer delivery commitments at risk for QSC (PO #89234) and Airbus (PO #89567)',
     'Alternate suppliers (Flex Chennai, Wistron Pune) also affected by same disruption',
   ];
 
@@ -33,7 +33,7 @@ export default function ImpactAnalysis({ supplier }: ImpactAnalysisProps) {
   const recommendedActions = [
     { text: `Contact ${supplier.name} to confirm revised ETA`, assignee: 'John Smith', checked: false },
     { text: 'Evaluate air freight option for critical PO #89234', estimate: '$45K', checked: false },
-    { text: 'Notify Boeing and Airbus of potential 10-day slip', checked: false },
+    { text: 'Notify QSC and Airbus of potential 10-day slip', checked: false },
     { text: 'Expedite qualification of Flex Chennai as backup', target: '30 days', checked: false },
   ];
 

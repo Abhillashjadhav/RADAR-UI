@@ -120,9 +120,9 @@ export default function Sidebar() {
 
       {/* Client switcher */}
       <button className="mx-3 mb-4 px-3 py-2.5 rounded-xl border border-gray-100 hover:bg-gray-50 flex items-center gap-2.5 transition-colors">
-        <span className="w-8 h-8 rounded-full bg-charcoal bg-gray-900 text-white text-xs font-bold flex items-center justify-center">B</span>
+        <span className="w-8 h-8 rounded-full bg-gray-900 text-white text-xs font-bold flex items-center justify-center">Q</span>
         <span className="flex-1 text-left">
-          <span className="block text-sm font-semibold text-gray-900 leading-tight">boeing</span>
+          <span className="block text-sm font-semibold text-gray-900 leading-tight">QSC</span>
           <span className={SECTION_LABEL}>Client</span>
         </span>
         <ChevronsUpDown size={14} className="text-gray-300" />
