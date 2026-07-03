@@ -4,6 +4,8 @@
 // ---------------------------------------------------------------------------
 
 export interface AnalysisEvent {
+  /** Stable event id — referenced by parameter_changes.event_ids. */
+  id?: string;
   news: string;              // headline
   sub_factor: string;        // attribution tag — the parameter that moved
   sentiment: number;         // -1..1 (negative = bad)
@@ -18,6 +20,20 @@ export interface AnalysisEvent {
   occurred_at?: string;
 }
 
+/** One tracked parameter inside a lens: what changed, from what to what. */
+export interface ParameterChange {
+  parameter_id: string;
+  name: string;                              // e.g. "Import tariffs — semiconductors"
+  value_type: 'percent' | 'binary' | 'index';
+  before: number;
+  after: number;
+  unit: string;                              // '%', '', 'index 0–100', …
+  contribution: number;                      // score points of the lens delta
+  impact_bucket: 'delivery' | 'compliance' | 'cost';
+  event_ids: string[];                       // evidence events backing the change
+  implication: string;                       // one-line plain-language consequence
+}
+
 export interface AnalysisDimension {
   key: string;               // e.g. 'geopolitical'
   abbr: string;              // e.g. 'GPS'
@@ -27,6 +43,8 @@ export interface AnalysisDimension {
   has_event_data: boolean;   // false → score is the neutral 50 fallback, NOT measured
   event_count: number;
   events: AnalysisEvent[];
+  /** Parameter-level attribution for this run; before===after = no change in window. */
+  parameter_changes?: ParameterChange[];
 }
 
 export interface SupplierAnalysis {

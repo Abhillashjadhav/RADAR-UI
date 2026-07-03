@@ -5,7 +5,7 @@
 //   no events = 50.0 + has_event_data=false (renders "No data", never ranks).
 // Swap this file for a backend export and numbers change, not code.
 // ---------------------------------------------------------------------------
-import type { AnalysisEvent, AnalysisDimension, SupplierAnalysis } from '../types/analysis';
+import type { AnalysisEvent, AnalysisDimension, SupplierAnalysis, ParameterChange } from '../types/analysis';
 import { lensScore, overallScore, riskLevelOf, topMeasuredDimension } from './scoring';
 
 export const REF_DATE = '2026-07-02'; // "today" for history/break windows
@@ -33,9 +33,13 @@ const ev = (
 ): AnalysisEvent => ({ news, sub_factor, sentiment, impactin_days, recoveryin_days, news_link, occurred_at, riskScore });
 
 // Build the 12 dimensions from a sparse map of lens-key -> events ----------------
-function buildDimensions(eventsByLens: Record<string, AnalysisEvent[]>): AnalysisDimension[] {
+function buildDimensions(
+  eventsByLens: Record<string, AnalysisEvent[]>,
+  paramsByLens: Record<string, ParameterChange[]> = {},
+): AnalysisDimension[] {
   const dims = LENSES.map(({ key, abbr, label }) => {
-    const events = eventsByLens[key] ?? [];
+    // stable per-lens event ids (EV-GPS-1, …) referenced by parameter_changes
+    const events = (eventsByLens[key] ?? []).map((e, i) => ({ ...e, id: e.id ?? `EV-${abbr}-${i + 1}` }));
     return {
       key, abbr, label,
       score: lensScore(events),
@@ -43,6 +47,7 @@ function buildDimensions(eventsByLens: Record<string, AnalysisEvent[]>): Analysi
       has_event_data: events.length > 0,
       event_count: events.length,
       events,
+      parameter_changes: paramsByLens[key],
     };
   });
   // isPrimary = highest MEASURED lens only
@@ -57,8 +62,9 @@ function buildDimensions(eventsByLens: Record<string, AnalysisEvent[]>): Analysi
 function buildAnalysis(
   id: string, supplierName: string, location: string, revenueImpact: number,
   eventsByLens: Record<string, AnalysisEvent[]>,
+  paramsByLens: Record<string, ParameterChange[]> = {},
 ): SupplierAnalysis {
-  const dimensions = buildDimensions(eventsByLens);
+  const dimensions = buildDimensions(eventsByLens, paramsByLens);
   const overall = overallScore(dimensions);
   const a: SupplierAnalysis = {
     id, runId: 'RUN-2026-07-02-001', supplierName, location,
@@ -92,6 +98,45 @@ const VTECH = buildAnalysis('SUPA-001', 'VTECH (DONGGUAN)', 'Dongguan, China', 2
   ],
   labor_social: [
     ev('2026-05-30', 'wage disputes', -0.25, 'Overtime dispute at Dongguan campus resolved in 3 days', 'https://www.sixthtone.com/dongguan-2026', 5, 10, 0.14),
+  ],
+}, {
+  // ---- parameter-level attribution (demo case a: tariffs + export controls) ----
+  geopolitical: [
+    {
+      parameter_id: 'PRM-GPS-TARIFF',
+      name: 'Import tariffs — semiconductors',
+      value_type: 'percent', before: 10, after: 50, unit: '%',
+      contribution: 8.4, impact_bucket: 'cost',
+      event_ids: ['EV-GPS-2', 'EV-GPS-6'],
+      implication: 'Landed cost on affected parts rises; check Cost impact bucket.',
+    },
+    {
+      parameter_id: 'PRM-GPS-MARITIME',
+      name: 'Maritime disruption index — Taiwan Strait',
+      value_type: 'index', before: 38, after: 72, unit: 'index 0–100',
+      contribution: 6.7, impact_bucket: 'delivery',
+      event_ids: ['EV-GPS-3', 'EV-GPS-4', 'EV-GPS-5'],
+      implication: 'Transit +9 days on rerouted lanes; expect delivery slips on sea freight.',
+    },
+    {
+      parameter_id: 'PRM-GPS-EXPCTL',
+      name: 'Export controls index',
+      value_type: 'index', before: 44, after: 51, unit: 'index 0–100',
+      contribution: 3.1, impact_bucket: 'compliance',
+      event_ids: ['EV-GPS-6'],
+      implication: 'New dual-use license rule covers RF modules; license lead time applies.',
+    },
+  ],
+  // no change in window — drawer must still render current values
+  logistics_transport: [
+    {
+      parameter_id: 'PRM-LOG-CONGESTION',
+      name: 'Port congestion index — Yantian',
+      value_type: 'index', before: 62, after: 62, unit: 'index 0–100',
+      contribution: 0, impact_bucket: 'delivery',
+      event_ids: ['EV-LOG-1', 'EV-LOG-2'],
+      implication: 'Yard density elevated but steady; no new delivery impact this window.',
+    },
   ],
 });
 
@@ -129,6 +174,26 @@ const GOLDENBAMBOO = buildAnalysis('SUPA-002', 'GOLDENBAMBOO', 'Shenzhen, China'
   labor_social: [
     ev('2026-06-22', 'workforce availability', -0.30, 'Shift-coverage gaps reported at Shenzhen campus', 'https://www.sixthtone.com/shenzhen-shifts-2026', 14, 30, 0.15),
     ev('2026-06-28', 'workforce availability', -0.35, 'Contract-labor agency audit initiated', 'https://www.sixthtone.com/agency-audit-2026', 30, 60, 0.2),
+  ],
+}, {
+  // ---- parameter-level attribution (demo case b: binary sanctions flip) ----
+  esg_regulatory: [
+    {
+      parameter_id: 'PRM-ESG-WRO',
+      name: 'UFLPA Withhold Release Order status',
+      value_type: 'binary', before: 0, after: 1, unit: '',
+      contribution: 13.7, impact_bucket: 'compliance',
+      event_ids: ['EV-ESG-5', 'EV-ESG-6', 'EV-ESG-7', 'EV-ESG-8', 'EV-ESG-9'],
+      implication: 'Shipments detainable at US entry; hold affected lots pending clearance.',
+    },
+    {
+      parameter_id: 'PRM-ESG-EMISSIONS',
+      name: 'Emissions exceedance index',
+      value_type: 'index', before: 12, after: 38, unit: 'index 0–100',
+      contribution: 6.2, impact_bucket: 'cost',
+      event_ids: ['EV-ESG-10', 'EV-ESG-11'],
+      implication: 'Scrubber remediation likely; expect pass-through cost on affected lines.',
+    },
   ],
 });
 
