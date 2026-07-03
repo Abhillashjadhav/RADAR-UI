@@ -5,6 +5,7 @@ import { flattenNetwork } from '../../data/subtierMockData';
 import type { PriorityNode } from '../../utils/selectPrioritySuppliers';
 import { formatRevenue } from '../../types';
 import { popChangeFor, lensFor, nodeMatchesLens, LENSES } from '../../data/popLens';
+import { FCoin } from '../Layout/PageTitle';
 
 interface SubTierDetailModalProps {
   root: SubTierFullNode;
@@ -129,7 +130,7 @@ export default function SubTierDetailModal({ root, prioritySet, onClose, exposur
         {/* Header */}
         <div className="flex items-center justify-between px-6 py-4 border-b border-gray-200">
           <div>
-            <h2 className="text-lg font-semibold text-gray-900">Full Sub-Tier Network — Bill of Materials</h2>
+            <div className="flex items-center gap-2.5"><FCoin size={24} /><h2 className="text-lg font-semibold text-gray-900">Full Sub-Tier Network — Bill of Materials</h2></div>
             <p className="text-sm text-gray-500 mt-0.5">
               {allRows.length} suppliers across T1–T3 &middot; <span className="text-red-600 font-medium">{priorityIds.size} priority rows highlighted</span>
             </p>
