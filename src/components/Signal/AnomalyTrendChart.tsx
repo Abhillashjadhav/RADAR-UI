@@ -75,7 +75,9 @@ export default function AnomalyTrendChart({ anomaly, width = 600, height = 200 }
         {breakX !== null && (
           <>
             <line x1={breakX} y1={PAD.top} x2={breakX} y2={H - PAD.bottom} stroke="#DC2626" strokeWidth={1.5} strokeDasharray="4 2" />
-            <text x={breakX + 3} y={PAD.top + 10} fontSize={8} fill="#DC2626">breakout</text>
+            <text x={breakX + 3} y={PAD.top + 10} fontSize={8.5} fontWeight={700} fill="#DC2626">
+              ▲ +{Math.round((anomaly.scoreAfter - anomaly.scoreBaseline) * 10) / 10}
+            </text>
           </>
         )}
 

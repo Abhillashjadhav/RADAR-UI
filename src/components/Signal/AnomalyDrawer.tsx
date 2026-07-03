@@ -1,10 +1,14 @@
 import { useMemo, useState } from 'react';
-import { X, ExternalLink, AlertTriangle, CheckCircle } from 'lucide-react';
+import { X, ExternalLink, AlertTriangle, CheckCircle, Hourglass } from 'lucide-react';
 import type { Anomaly } from '../../data/anomalyMockData';
+import type { AnalysisDimension } from '../../types/analysis';
 import { formatRevenueAtRisk } from './signalUi';
 import AnomalyTrendChart from './AnomalyTrendChart';
 import ScoreBreakdown from './ScoreBreakdown';
 import SubFactorAttribution, { EventMath } from './SubFactorAttribution';
+import { lensDetection, BASELINE_DAYS } from '../../data/analysisAnomalies';
+import { attributeDelta, scoreHistory } from '../../data/scoring';
+import { REF_DATE } from '../../data/supplierAnalysisFixtures';
 import { chip, SECTION_LABEL, GOLD_BTN } from '../../theme/tokens';
 
 interface Props {
@@ -13,19 +17,108 @@ interface Props {
   onAcknowledge: (id: string) => void;
 }
 
+// ---------------------------------------------------------------------------
+// Per-lens drill-down. The score is the state, the badge is the anomaly,
+// the bar is the why — never label the score itself as "the anomaly".
+// ---------------------------------------------------------------------------
+function LensDrillDown({ dim, feedAnomaly }: { dim: AnalysisDimension; feedAnomaly: Anomaly }) {
+  const [subFactorFilter, setSubFactorFilter] = useState<string | null>(null);
+  const det = useMemo(() => lensDetection(dim), [dim]);
+  const attribution = useMemo(
+    () => det.status === 'fired' ? attributeDelta(det.baselineEvents, det.newEvents) : [],
+    [det],
+  );
+
+  // Chart object: reuse the feed anomaly when this IS its lens, else synthesize
+  const chartAnomaly: Anomaly = useMemo(() => {
+    if (dim.key === feedAnomaly.lens) return feedAnomaly;
+    return {
+      ...feedAnomaly,
+      lens: dim.key as Anomaly['lens'],
+      lensLabel: dim.label,
+      scoreBaseline: det.scoreBaseline,
+      scoreAfter: det.latest,
+      breakDate: det.newEvents.length ? det.newEvents.map(e => e.occurred_at!).sort()[0] : '',
+      bandLow: det.bandLow,
+      bandHigh: det.bandHigh,
+      history: scoreHistory(dim.events, REF_DATE, BASELINE_DAYS + det.newEvents.length + 2),
+      provisionalBaseline: false,
+    };
+  }, [dim, det, feedAnomaly]);
+
+  const mathEvents = useMemo(
+    () => subFactorFilter ? dim.events.filter(e => e.sub_factor === subFactorFilter) : dim.events,
+    [dim.events, subFactorFilter],
+  );
+  const mathScore = subFactorFilter
+    ? Math.round(((1 - mathEvents.reduce((s, e) => s + e.sentiment, 0) / Math.max(1, mathEvents.length)) / 2) * 1000) / 10
+    : det.latest;
+
+  return (
+    <>
+      {/* Baseline building — never fires, no anomaly badge */}
+      {det.status === 'building' && (
+        <div className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 flex items-start gap-2 text-xs text-amber-800">
+          <Hourglass size={14} className="flex-shrink-0 mt-0.5" />
+          <span>
+            <strong>Baseline building ({det.daysOfHistory}/{BASELINE_DAYS} days)</strong> — anomaly
+            detection needs {BASELINE_DAYS} days of stored runs for this lens before it can fire.
+            Score {det.latest} is the current state, not an anomaly.
+          </span>
+        </div>
+      )}
+
+      {det.status === 'stable' && (
+        <div className="rounded-xl border border-gray-200 bg-white px-4 py-3 text-xs text-gray-500">
+          No anomaly — latest score <span className="font-bold text-gray-800">{det.latest}</span> sits
+          inside the 30-day band ({det.bandLow}–{det.bandHigh}, baseline mean {det.baselineMean}).
+        </div>
+      )}
+
+      {/* Trend chart — the proof of anomaly (fired lenses only) */}
+      {det.status === 'fired' && (
+        <div className="rounded-xl border border-gray-200 bg-white p-4">
+          <p className={`${SECTION_LABEL} mb-3`}>
+            Baseline vs breakout — last {BASELINE_DAYS} days of stored runs
+          </p>
+          <AnomalyTrendChart anomaly={chartAnomaly} height={200} />
+          <p className="text-[11px] text-gray-400 mt-2">
+            Band = 30-day mean {det.baselineMean} ± 2σ (σ={det.sigma}) · fired by{' '}
+            {det.firedBy === 'relative_jump' ? 'relative jump ≥15%' : 'band break'}
+          </p>
+        </div>
+      )}
+
+      {/* Attribution — parameters get the contribution bar only, never their own charts */}
+      {det.status === 'fired' && attribution.length > 0 && (
+        <SubFactorAttribution
+          lensLabel={dim.label}
+          before={det.scoreBaseline}
+          after={det.latest}
+          attribution={attribution}
+          selected={subFactorFilter}
+          onSelect={setSubFactorFilter}
+        />
+      )}
+
+      {/* Event list — filtered to the clicked segment */}
+      {dim.events.length > 0 && <EventMath events={mathEvents} score={mathScore} />}
+    </>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Drawer
+// ---------------------------------------------------------------------------
 export default function AnomalyDrawer({ anomaly, onClose, onAcknowledge }: Props) {
   const delta = Math.round((anomaly.scoreAfter - anomaly.scoreBaseline) * 10) / 10;
   const isActive = anomaly.status === 'active';
-  const [subFactorFilter, setSubFactorFilter] = useState<string | null>(null);
+  const [selectedLensKey, setSelectedLensKey] = useState<string>(anomaly.lens);
 
-  const hasAttribution = !!anomaly.attribution && anomaly.attribution.length > 0;
-
-  // Events shown in the math panel: all lens events, or just the selected sub-factor's
-  const mathEvents = useMemo(() => {
-    const all = anomaly.dimension?.events ?? [];
-    if (!subFactorFilter) return all;
-    return all.filter(e => e.sub_factor === subFactorFilter);
-  }, [anomaly.dimension, subFactorFilter]);
+  const selectedDim: AnalysisDimension | undefined = useMemo(
+    () => anomaly.analysis?.dimensions.find(d => d.key === selectedLensKey && d.has_event_data),
+    [anomaly.analysis, selectedLensKey],
+  );
 
   return (
     <div className="fixed inset-0 z-50 flex justify-end bg-black/30" onClick={onClose}>
@@ -46,11 +139,6 @@ export default function AnomalyDrawer({ anomaly, onClose, onAcknowledge }: Props
                   <AlertTriangle size={11} /> Unverified
                 </span>
               )}
-              {anomaly.provisionalBaseline && (
-                <span className="text-xs px-2 py-0.5 rounded-full bg-amber-50 text-amber-600 border border-amber-200 font-medium">
-                  Provisional baseline
-                </span>
-              )}
             </div>
             <h2 className="text-base font-bold text-gray-900">{anomaly.supplierName}</h2>
             <p className="text-xs text-gray-400">T{anomaly.tier} · {anomaly.lensLabel}</p>
@@ -62,18 +150,18 @@ export default function AnomalyDrawer({ anomaly, onClose, onAcknowledge }: Props
 
         {/* Scrollable body */}
         <div className="flex-1 overflow-y-auto px-6 py-5 space-y-5 bg-[#F7F8FA]">
-          {/* Key metrics */}
+          {/* Key metrics — score is the STATE; the badge is the anomaly */}
           <div className="grid grid-cols-3 gap-3">
             <div className="bg-white border border-gray-100 rounded-xl p-3">
               <p className="text-xs text-gray-500 mb-1">Score</p>
-              <p className="text-xl font-bold text-gray-900 tabular-nums">
-                {anomaly.scoreAfter}
-                {delta !== 0 && (
-                  <span className={`ml-2 text-sm font-semibold ${delta > 0 ? 'text-red-600' : 'text-green-600'}`}>
-                    {delta > 0 ? '▲' : '▼'} {Math.abs(delta)}
-                  </span>
-                )}
-              </p>
+              <p className="text-xl font-bold text-gray-900 tabular-nums">{anomaly.scoreAfter}</p>
+              {delta !== 0 && (
+                <span className={`inline-flex items-center mt-1 px-1.5 py-0.5 rounded text-[11px] font-bold tabular-nums ${
+                  anomaly.scoreAfter >= 70 ? 'bg-red-100 text-red-700' : 'bg-amber-100 text-amber-700'
+                }`}>
+                  {delta > 0 ? '▲' : '▼'} {delta > 0 ? '+' : ''}{delta} vs 30-day baseline
+                </span>
+              )}
             </div>
             <div className="bg-white border border-gray-100 rounded-xl p-3">
               <p className="text-xs text-gray-500 mb-1">Cost Exposure</p>
@@ -91,69 +179,66 @@ export default function AnomalyDrawer({ anomaly, onClose, onAcknowledge }: Props
             </div>
           </div>
 
-          {/* Trend chart — the detection layer (score is the tripwire) */}
-          <div className="rounded-xl border border-gray-200 bg-white p-4">
-            <p className={`${SECTION_LABEL} mb-3`}>
-              Baseline vs breakout — {anomaly.history.length}-day score history
-            </p>
-            <AnomalyTrendChart anomaly={anomaly} height={200} />
-          </div>
-
-          {/* Attribution layer — WHICH sub-factor moved the score */}
-          {hasAttribution ? (
-            <>
-              <SubFactorAttribution
-                lensLabel={anomaly.lensLabel}
-                before={anomaly.scoreBaseline}
-                after={anomaly.scoreAfter}
-                attribution={anomaly.attribution!}
-                selected={subFactorFilter}
-                onSelect={setSubFactorFilter}
-              />
-              <EventMath events={mathEvents} score={
-                // score of the filtered set, or the lens score when unfiltered
-                subFactorFilter
-                  ? Math.round(((1 - mathEvents.reduce((s, e) => s + e.sentiment, 0) / Math.max(1, mathEvents.length)) / 2) * 1000) / 10
-                  : anomaly.scoreAfter
-              } />
-            </>
-          ) : (
-            <ScoreBreakdown bd={anomaly.breakdown} />
-          )}
-
-          {/* All 12 lenses — no-data renders greyed, never as a measured 50 */}
+          {/* Lens grid — every measured tile clickable; fired shows the delta badge */}
           {anomaly.analysis && (
             <div className="rounded-xl border border-gray-200 bg-white p-4">
               <p className={`${SECTION_LABEL} mb-3`}>
                 All 12 lenses — {anomaly.analysis.supplierName} · overall {anomaly.analysis.overallScore}
               </p>
               <div className="grid grid-cols-3 gap-2">
-                {anomaly.analysis.dimensions.map(d => (
-                  <div
-                    key={d.key}
-                    className={`rounded-lg px-2.5 py-2 border ${
-                      d.has_event_data
-                        ? d.key === anomaly.lens
-                          ? 'border-amber-300 bg-amber-50'
-                          : 'border-gray-100 bg-white'
-                        : 'border-gray-100 bg-gray-50 opacity-60'
-                    }`}
-                  >
-                    <p className="text-[10px] font-bold text-gray-500 uppercase tracking-wide">{d.abbr}</p>
-                    {d.has_event_data ? (
+                {anomaly.analysis.dimensions.map(d => {
+                  if (!d.has_event_data) {
+                    return (
+                      <div key={d.key} className="rounded-lg px-2.5 py-2 border border-gray-100 bg-gray-50 opacity-60">
+                        <p className="text-[10px] font-bold text-gray-500 uppercase tracking-wide">{d.abbr}</p>
+                        <p className="text-[11px] font-semibold text-gray-400">No data</p>
+                      </div>
+                    );
+                  }
+                  const det = lensDetection(d);
+                  const dDelta = det.delta;
+                  const active = selectedLensKey === d.key;
+                  return (
+                    <button
+                      key={d.key}
+                      onClick={() => setSelectedLensKey(d.key)}
+                      className={`rounded-lg px-2.5 py-2 border text-left transition-colors ${
+                        active ? 'border-amber-400 bg-amber-50' : 'border-gray-100 bg-white hover:border-amber-200'
+                      }`}
+                    >
+                      <p className="text-[10px] font-bold text-gray-500 uppercase tracking-wide">{d.abbr}</p>
                       <p className={`text-sm font-bold tabular-nums ${
                         d.score >= 70 ? 'text-red-600' : d.score >= 40 ? 'text-amber-600' : 'text-green-600'
                       }`}>
                         {d.score}
-                        <span className="ml-1 text-[10px] font-medium text-gray-400">{d.event_count} ev</span>
                       </p>
-                    ) : (
-                      <p className="text-[11px] font-semibold text-gray-400">No data</p>
-                    )}
-                  </div>
-                ))}
+                      {det.status === 'fired' && (
+                        <span className={`inline-flex px-1 py-0.5 rounded text-[10px] font-bold tabular-nums ${
+                          det.latest >= 70 ? 'bg-red-100 text-red-700' : 'bg-amber-100 text-amber-700'
+                        }`}>
+                          ▲ +{dDelta}
+                        </span>
+                      )}
+                      {det.status === 'building' && (
+                        <span className="inline-flex px-1 py-0.5 rounded text-[10px] font-semibold bg-gray-100 text-gray-500">
+                          Building {det.daysOfHistory}/{BASELINE_DAYS}
+                        </span>
+                      )}
+                      {det.status === 'stable' && (
+                        <span className="inline-flex text-[10px] text-gray-400">{d.event_count} ev</span>
+                      )}
+                    </button>
+                  );
+                })}
               </div>
             </div>
+          )}
+
+          {/* Drill-down for the selected lens */}
+          {selectedDim ? (
+            <LensDrillDown key={selectedDim.key} dim={selectedDim} feedAnomaly={anomaly} />
+          ) : (
+            <ScoreBreakdown bd={anomaly.breakdown} />
           )}
 
           {/* Sources */}
