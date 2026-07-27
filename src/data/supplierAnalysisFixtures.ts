@@ -377,76 +377,7 @@ const JST = buildAnalysis('SUPA-014', 'JST', 'Osaka, Japan', 2_382, {
   ],
 });
 
-// ---------------------------------------------------------------------------
-// P0 anomaly-detection fixtures.
-//
-// ONLY EVENTS ARE SEEDED. Every reading, band, delta, rule and contribution
-// quoted below is COMPUTED by scoring.ts from these sentiments and dates —
-// nothing is hand-written to force a state. Verified engine output is quoted
-// per lens so this fixture doubles as the test oracle for Phase 6.
-// ---------------------------------------------------------------------------
-const NEXPERIA = buildAnalysis('SUPA-015', 'NEXPERIA', 'Nijmegen, Netherlands', 14_200, {
-  // BAND BREAK + ATTRIBUTION — computed: 52.0 -> 71.0, delta +19.0, firedBy band;
-  // labour practices +12.4 (3 events) | emissions violations +6.6 (2 events), sum 19.0
-  esg_regulatory: [
-    ev('2026-05-17', 'compliance filings', -0.10, 'CSR report filed one week past deadline', 'https://www.nexperia.com/csr-2026', 0, 0, 0.05),
-    ev('2026-05-23', 'compliance filings',  0.04, 'ISO 14001 surveillance audit passed', 'https://www.nexperia.com/iso-2026', 0, 0, 0.02),
-    ev('2026-05-29', 'permit status',      -0.08, 'Wastewater discharge permit renewal pending', 'https://www.rvo.nl/permits-2026', 30, 60, 0.05),
-    ev('2026-06-08', 'permit status',      -0.02, 'Permit renewed with standard conditions', 'https://www.rvo.nl/permit-grant-2026', 0, 0, 0.02),
-    ev('2026-06-24', 'labour practices',   -0.85, 'Labour inspectorate opens agency-staffing review', 'https://www.nlarbeidsinspectie.nl/review-2026', 7, 60, 0.78),
-    ev('2026-06-25', 'labour practices',   -0.82, 'Recruitment-fee reimbursement demanded by customer coalition', 'https://www.reuters.com/recruitment-fees-2026', 14, 90, 0.74),
-    ev('2026-06-27', 'labour practices',   -0.80, 'Second site added to inspection scope', 'https://www.nlarbeidsinspectie.nl/scope-2026', 7, 60, 0.71),
-    ev('2026-06-26', 'emissions violations', -0.60, 'Provincial regulator cites stack-emissions exceedance', 'https://www.rvo.nl/emissions-2026', 30, 90, 0.52),
-    ev('2026-06-28', 'emissions violations', -0.55, 'Follow-up inspection confirms scrubber underperformance', 'https://www.rvo.nl/inspection-2026', 30, 90, 0.47),
-  ],
-  // SPIKE BREAK + SINGLE CAUSE — computed: 40.0 -> 51.0, delta +11.0,
-  // firedBy relative_jump (mean 36, sigma 8, band 20-52 — the reading sits INSIDE
-  // the band, so only the >=15% relative-jump rule trips it); allocation risk +11.0
-  market_competition: [
-    ev('2026-05-23', 'capacity pricing',  0.60, 'Discrete allocation eases; lead times normalise', 'https://www.digitimes.com/discretes-2026', 0, 0, 0.04),
-    ev('2026-06-02', 'capacity pricing', -0.20, 'Book-to-bill ticks above 1 on automotive demand', 'https://www.digitimes.com/btb-2026', 30, 60, 0.11),
-    ev('2026-06-12', 'capacity pricing',  0.20, 'Spot pricing flat through Q2', 'https://www.digitimes.com/spot-2026', 0, 0, 0.06),
-    ev('2026-06-26', 'allocation risk',  -0.36, 'Automotive MOSFET lines moved to allocation', 'https://www.digitimes.com/allocation-2026', 30, 90, 0.31),
-    ev('2026-06-28', 'allocation risk',  -0.34, 'Distributor stock cover falls below 6 weeks', 'https://www.digitimes.com/stock-cover-2026', 30, 60, 0.29),
-  ],
-  // NORMAL — computed: 52.0, stable, delta null (no events inside the break window)
-  economic_financial: [
-    ev('2026-05-17', 'credit health',   -0.10, 'Q1 leverage ratio unchanged', 'https://www.dnb.com/nexperia-2026', 90, 180, 0.05),
-    ev('2026-05-23', 'credit health',    0.04, 'Revolving facility renewed at par', 'https://www.dnb.com/facility-2026', 0, 0, 0.02),
-    ev('2026-05-29', 'fx exposure',     -0.08, 'EUR hedges rolled at marginally higher cost', 'https://www.ecb.europa.eu/fx-2026', 60, 90, 0.04),
-    ev('2026-06-08', 'fx exposure',     -0.02, 'FX volatility within policy band', 'https://www.ecb.europa.eu/vol-2026', 0, 0, 0.02),
-  ],
-  // BASELINE FORMING — computed: 12 days of history, never fires
-  labor_social: [
-    ev('2026-06-20', 'workforce availability', -0.30, 'Shift-coverage gaps reported at Hamburg fab', 'https://www.dw.com/hamburg-shifts-2026', 14, 30, 0.15),
-    ev('2026-06-27', 'workforce availability', -0.35, 'Works council opens consultation on overtime', 'https://www.dw.com/works-council-2026', 30, 60, 0.20),
-  ],
-  // The remaining 8 lenses are seeded with NO events -> "No coverage".
-});
-
-// NO REVENUE BASIS — same engine, but the customer gave us no revenue and no
-// cost basis for this supplier, so the revenue element is dropped downstream.
-const TONGFU = buildAnalysis('SUPA-016', 'TONGFU MICROELECTRONICS', 'Nantong, China', 0, {
-  // BAND BREAK — computed: 52.0 -> 71.0, delta +19.0, firedBy band
-  logistics_transport: [
-    ev('2026-05-17', 'ocean reliability', -0.10, 'Transpacific schedule reliability steady at 74%', 'https://www.sea-intelligence.com/tp-2026', 14, 30, 0.05),
-    ev('2026-05-23', 'ocean reliability',  0.04, 'Blank sailings withdrawn for June', 'https://www.joc.com/blank-2026', 0, 0, 0.02),
-    ev('2026-05-29', 'inland haulage',    -0.08, 'Yangtze barge slots tighten modestly', 'https://www.joc.com/barge-2026', 14, 21, 0.05),
-    ev('2026-06-08', 'inland haulage',    -0.02, 'Barge capacity restored', 'https://www.joc.com/barge-restored-2026', 0, 0, 0.02),
-    ev('2026-06-24', 'port congestion',   -0.85, 'Nantong terminal berth closure after crane failure', 'https://www.joc.com/nantong-2026', 7, 30, 0.78),
-    ev('2026-06-25', 'port congestion',   -0.82, 'Yard density passes 95%; gate delays at 3 days', 'https://www.joc.com/yard-2026', 7, 21, 0.74),
-    ev('2026-06-27', 'port congestion',   -0.80, 'Carriers omit Nantong on two loops', 'https://www.lloydslist.com/omissions-2026', 5, 30, 0.71),
-    ev('2026-06-26', 'customs delays',    -0.60, 'Customs inspection rate raised on outbound electronics', 'https://www.customs.gov.cn/inspection-2026', 14, 45, 0.52),
-    ev('2026-06-28', 'customs delays',    -0.55, 'Broker reports 4-day clearance backlog', 'https://www.customs.gov.cn/backlog-2026', 14, 30, 0.47),
-  ],
-});
-
-/** Suppliers where the customer supplied neither revenue nor a cost basis.
- *  Downstream this yields revenueAtRisk === null (never 0, never "N/A"). */
-export const NO_REVENUE_BASIS = new Set<string>(['TONGFU MICROELECTRONICS']);
-
 export const SUPPLIER_ANALYSES: SupplierAnalysis[] = [
   VTECH, GOLDENBAMBOO, GP_ELECTRONICS, TI, BEL_FUSE, LITTELFUSE,
   PANASONIC, KOA, SAMSUNG, YAGEO, MURATA, ONSEMI, GREENCONN, JST,
-  NEXPERIA, TONGFU,
 ];
