@@ -23,3 +23,8 @@ dist-ssr
 *.sln
 *.sw?
 .vite/
+
+# Generated capture/deck artifacts (regenerate with scripts/build_deck_frames.mjs + scripts/build_deck.py)
+walkthrough/
+docs/walkthrough/
+drift-check/
