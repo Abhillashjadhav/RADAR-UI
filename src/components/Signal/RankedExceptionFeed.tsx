@@ -181,6 +181,12 @@ export default function RankedExceptionFeed({ anomalies, onSelect }: Props) {
                   </td>
                   <td className="px-4 py-2.5">
                     <span className="text-xs font-semibold text-red-600 tabular-nums">▲ {delta}</span>
+                    {a.attribution && a.attribution.length > 0 && (
+                      <div className="text-xs text-gray-400 mt-0.5 truncate max-w-[160px]">
+                        {a.attribution[0].subFactor}{' '}
+                        <span className="tabular-nums">+{a.attribution[0].contribution}</span>
+                      </div>
+                    )}
                   </td>
                   <td className="px-4 py-2.5 text-sm font-medium text-gray-900 tabular-nums">
                     {a.costExposureUsd !== null
