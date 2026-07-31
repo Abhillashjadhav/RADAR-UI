@@ -2,7 +2,9 @@ import { useState, useMemo } from 'react';
 import { Download, ChevronUp, ChevronDown } from 'lucide-react';
 import type { Anomaly } from '../../data/anomalyMockData';
 import { anomalyStrength } from '../../data/anomalyMockData';
-import { formatRevenueAtRisk, exposureBasisLabel } from './signalUi';
+import { formatRevenueAtRisk } from './signalUi';
+import ExposureBasisSelect from './ExposureBasisSelect';
+import { useExposureBasisSelection } from './useExposureBasisSelection';
 
 interface Props {
   anomalies: Anomaly[];
@@ -17,6 +19,78 @@ const IMPACT_PILL: Record<string, string> = {
   compliance: 'bg-orange-100 text-orange-700',
   cost:       'bg-blue-100 text-blue-700',
 };
+
+function RankedRow({ anomaly: a, idx, onSelect }: { anomaly: Anomaly; idx: number; onSelect: (a: Anomaly) => void }) {
+  const delta = Math.round((a.scoreAfter - a.scoreBaseline) * 10) / 10;
+  const scoreColor = a.scoreAfter >= 70 ? 'text-red-600 bg-red-50' : a.scoreAfter >= 40 ? 'text-yellow-600 bg-yellow-50' : 'text-green-600 bg-green-50';
+  const strength = anomalyStrength(a);
+  const [basis, setBasis] = useExposureBasisSelection(a.exposureBasis);
+
+  return (
+    <tr
+      className="hover:bg-amber-50 cursor-pointer transition-colors"
+      onClick={() => onSelect(a)}
+    >
+      <td className="px-4 py-2.5 text-xs text-gray-400 tabular-nums">{idx + 1}</td>
+      <td className="px-4 py-2.5">
+        <p className="font-medium text-gray-900">{a.supplierName}</p>
+        <p className="text-xs text-gray-400">T{a.tier}</p>
+      </td>
+      <td className="px-4 py-2.5 text-xs text-gray-600">{a.lensLabel}</td>
+      <td className="px-4 py-2.5">
+        <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${IMPACT_PILL[a.impactBucket]}`}>
+          {a.impactBucket}
+        </span>
+      </td>
+      <td className="px-4 py-2.5">
+        <span className={`inline-flex items-center justify-center w-9 h-7 rounded text-xs font-bold tabular-nums ${scoreColor}`}>
+          {a.scoreAfter}
+        </span>
+      </td>
+      <td className="px-4 py-2.5">
+        <span className="text-xs font-semibold text-red-600 tabular-nums">▲ {delta}</span>
+        {a.attribution && a.attribution.length > 0 && (
+          <div className="text-xs text-gray-400 mt-0.5 truncate max-w-[160px]">
+            {a.attribution[0].subFactor}{' '}
+            <span className="tabular-nums">+{a.attribution[0].contribution}</span>
+          </div>
+        )}
+      </td>
+      <td className="px-4 py-2.5">
+        <div className="flex items-center gap-1.5">
+          {basis !== 'none' && a.exposureUsd !== null && (
+            <span className="text-sm font-medium text-gray-900 tabular-nums">
+              {formatRevenueAtRisk(a.exposureUsd)}
+            </span>
+          )}
+          <ExposureBasisSelect exposureBasis={a.exposureBasis} value={basis} onChange={setBasis} />
+        </div>
+      </td>
+      <td className="px-4 py-2.5">
+        {strength === null ? (
+          <span className="text-xs italic text-gray-400">n/a</span>
+        ) : (
+          <div className="flex items-center gap-1.5">
+            <div className="flex-1 bg-gray-100 rounded-full h-1.5" style={{ maxWidth: 60 }}>
+              <div
+                className="bg-red-400 h-1.5 rounded-full"
+                style={{ width: `${Math.min(100, (strength / 500) * 100)}%` }}
+              />
+            </div>
+            <span className="text-xs text-gray-500 tabular-nums">{Math.round(strength)}</span>
+          </div>
+        )}
+      </td>
+      <td className="px-4 py-2.5 text-xs text-gray-500">{a.breakDate || '—'}</td>
+      <td className="px-4 py-2.5">
+        {a.verified
+          ? <span className="text-xs text-green-600 font-medium">✓</span>
+          : <span className="text-xs text-amber-600 font-medium">⚠ Unverified</span>
+        }
+      </td>
+    </tr>
+  );
+}
 
 export default function RankedExceptionFeed({ anomalies, onSelect }: Props) {
   const [sortKey, setSortKey] = useState<SortKey>('strength');
@@ -154,76 +228,9 @@ export default function RankedExceptionFeed({ anomalies, onSelect }: Props) {
             </tr>
           </thead>
           <tbody className="divide-y divide-gray-100">
-            {rows.map((a, idx) => {
-              const delta = Math.round((a.scoreAfter - a.scoreBaseline) * 10) / 10;
-              const scoreColor = a.scoreAfter >= 70 ? 'text-red-600 bg-red-50' : a.scoreAfter >= 40 ? 'text-yellow-600 bg-yellow-50' : 'text-green-600 bg-green-50';
-              const strength = anomalyStrength(a);
-              return (
-                <tr
-                  key={a.id}
-                  className="hover:bg-amber-50 cursor-pointer transition-colors"
-                  onClick={() => onSelect(a)}
-                >
-                  <td className="px-4 py-2.5 text-xs text-gray-400 tabular-nums">{idx + 1}</td>
-                  <td className="px-4 py-2.5">
-                    <p className="font-medium text-gray-900">{a.supplierName}</p>
-                    <p className="text-xs text-gray-400">T{a.tier}</p>
-                  </td>
-                  <td className="px-4 py-2.5 text-xs text-gray-600">{a.lensLabel}</td>
-                  <td className="px-4 py-2.5">
-                    <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${IMPACT_PILL[a.impactBucket]}`}>
-                      {a.impactBucket}
-                    </span>
-                  </td>
-                  <td className="px-4 py-2.5">
-                    <span className={`inline-flex items-center justify-center w-9 h-7 rounded text-xs font-bold tabular-nums ${scoreColor}`}>
-                      {a.scoreAfter}
-                    </span>
-                  </td>
-                  <td className="px-4 py-2.5">
-                    <span className="text-xs font-semibold text-red-600 tabular-nums">▲ {delta}</span>
-                    {a.attribution && a.attribution.length > 0 && (
-                      <div className="text-xs text-gray-400 mt-0.5 truncate max-w-[160px]">
-                        {a.attribution[0].subFactor}{' '}
-                        <span className="tabular-nums">+{a.attribution[0].contribution}</span>
-                      </div>
-                    )}
-                  </td>
-                  <td className="px-4 py-2.5">
-                    {a.exposureUsd !== null && (
-                      <>
-                        <div className="text-sm font-medium text-gray-900 tabular-nums">
-                          {formatRevenueAtRisk(a.exposureUsd)}
-                        </div>
-                        <div className="text-[11px] text-gray-400">{exposureBasisLabel[a.exposureBasis]}</div>
-                      </>
-                    )}
-                  </td>
-                  <td className="px-4 py-2.5">
-                    {strength === null ? (
-                      <span className="text-xs italic text-gray-400">n/a</span>
-                    ) : (
-                      <div className="flex items-center gap-1.5">
-                        <div className="flex-1 bg-gray-100 rounded-full h-1.5" style={{ maxWidth: 60 }}>
-                          <div
-                            className="bg-red-400 h-1.5 rounded-full"
-                            style={{ width: `${Math.min(100, (strength / 500) * 100)}%` }}
-                          />
-                        </div>
-                        <span className="text-xs text-gray-500 tabular-nums">{Math.round(strength)}</span>
-                      </div>
-                    )}
-                  </td>
-                  <td className="px-4 py-2.5 text-xs text-gray-500">{a.breakDate || '—'}</td>
-                  <td className="px-4 py-2.5">
-                    {a.verified
-                      ? <span className="text-xs text-green-600 font-medium">✓</span>
-                      : <span className="text-xs text-amber-600 font-medium">⚠ Unverified</span>
-                    }
-                  </td>
-                </tr>
-              );
-            })}
+            {rows.map((a, idx) => (
+              <RankedRow key={a.id} anomaly={a} idx={idx} onSelect={onSelect} />
+            ))}
           </tbody>
         </table>
         {rows.length === 0 && (

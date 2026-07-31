@@ -2,7 +2,9 @@ import { useMemo, useState } from 'react';
 import { X, ExternalLink, AlertTriangle, CheckCircle, Hourglass } from 'lucide-react';
 import type { Anomaly } from '../../data/anomalyMockData';
 import type { AnalysisDimension, ParameterChange } from '../../types/analysis';
-import { formatRevenueAtRisk, exposureBasisLabel } from './signalUi';
+import { formatRevenueAtRisk } from './signalUi';
+import ExposureBasisSelect from './ExposureBasisSelect';
+import { useExposureBasisSelection } from './useExposureBasisSelection';
 // AnomalyTrendChart intentionally NOT mounted here anymore — the lens
 // baseline-vs-breakout chart lives on the lens/anomaly detail surfaces.
 import ScoreBreakdown from './ScoreBreakdown';
@@ -123,6 +125,7 @@ export default function AnomalyDrawer({ anomaly, onClose, onAcknowledge }: Props
   const isActive = anomaly.status === 'active';
   const [selectedLensKey, setSelectedLensKey] = useState<string>(anomaly.lens);
   const [subFactorFilter, setSubFactorFilter] = useState<string | null>(null);
+  const [exposureBasisSel, setExposureBasisSel] = useExposureBasisSelection(anomaly.exposureBasis);
 
   const selectedDim: AnalysisDimension | undefined = useMemo(
     () => anomaly.analysis?.dimensions.find(d => d.key === selectedLensKey && d.has_event_data),
@@ -215,7 +218,7 @@ export default function AnomalyDrawer({ anomaly, onClose, onAcknowledge }: Props
           {selectedDim && <ParameterDetails dim={selectedDim} lensDelta={lensDelta} />}
 
           {/* Key metrics — the reading is the STATE; the badge is the anomaly */}
-          <div className={`grid gap-3 ${anomaly.exposureUsd !== null ? 'grid-cols-3' : 'grid-cols-2'}`}>
+          <div className="grid grid-cols-3 gap-3">
             <div className="bg-white border border-gray-100 rounded-xl p-3">
               <p className="text-xs text-gray-500 mb-1">Lens Reading</p>
               <p className="text-xl font-bold text-gray-900 tabular-nums">{anomaly.scoreAfter}</p>
@@ -227,14 +230,19 @@ export default function AnomalyDrawer({ anomaly, onClose, onAcknowledge }: Props
                 </span>
               )}
             </div>
-            {anomaly.exposureUsd !== null && (
-              <div className="bg-white border border-gray-100 rounded-xl p-3">
-                <p className="text-xs text-gray-500 mb-1">{exposureBasisLabel[anomaly.exposureBasis]}</p>
-                <p className="text-xl font-bold text-amber-600 tabular-nums">
-                  {formatRevenueAtRisk(anomaly.exposureUsd)}
-                </p>
-              </div>
-            )}
+            <div className="bg-white border border-gray-100 rounded-xl p-3">
+              <ExposureBasisSelect
+                exposureBasis={anomaly.exposureBasis}
+                value={exposureBasisSel}
+                onChange={setExposureBasisSel}
+                className="text-[11px] text-gray-500 border border-gray-200 rounded px-1 py-0.5 bg-white mb-1 hover:border-amber-300 focus:outline-none focus:ring-1 focus:ring-amber-400 cursor-pointer"
+              />
+              <p className="text-xl font-bold text-amber-600 tabular-nums">
+                {exposureBasisSel !== 'none' && anomaly.exposureUsd !== null
+                  ? formatRevenueAtRisk(anomaly.exposureUsd)
+                  : <span className="text-sm italic text-gray-400">—</span>}
+              </p>
+            </div>
             <div className="bg-white border border-gray-100 rounded-xl p-3">
               <p className="text-xs text-gray-500 mb-1">Break Date</p>
               <p className="text-base font-bold text-gray-900">

@@ -94,7 +94,7 @@ export const lensHumanLabel: Record<RiskLens, string> = {
 export const exposureBasisLabel: Record<RevenueBasis, string> = {
   revenue: 'Revenue at Risk',
   cost: 'Cost Exposure (modeled)',
-  none: '',
+  none: 'Risk Score Only',
 };
 
 export const formatRevenueAtRisk = (usd: number): string => {

@@ -3,7 +3,9 @@ import { Link, useSearchParams } from 'react-router-dom';
 import { AlertTriangle, CheckCircle, BarChart2, MessageSquare, AlertOctagon, FileCheck, ArrowRight } from 'lucide-react';
 import { ANOMALIES } from '../../data/analysisAnomalies';
 import type { Anomaly } from '../../data/anomalyMockData';
-import { formatRevenueAtRisk, exposureBasisLabel, lensHumanLabel, severityTokens } from './signalUi';
+import { formatRevenueAtRisk, lensHumanLabel, severityTokens } from './signalUi';
+import ExposureBasisSelect from './ExposureBasisSelect';
+import { useExposureBasisSelection } from './useExposureBasisSelection';
 import { sampleSignal } from '../../data/sample-signal';
 import AnomalyDrawer from './AnomalyDrawer';
 import RankedExceptionFeed from './RankedExceptionFeed';
@@ -56,6 +58,7 @@ function FeedRow({
 }) {
   const delta = Math.round((anomaly.scoreAfter - anomaly.scoreBaseline) * 10) / 10;
   const hasBreakout = delta > 0;
+  const [basis, setBasis] = useExposureBasisSelection(anomaly.exposureBasis);
 
   return (
     <tr
@@ -103,14 +106,14 @@ function FeedRow({
         </span>
       </td>
       <td className="px-4 py-3">
-        {anomaly.exposureUsd !== null && (
-          <>
-            <div className="text-sm font-medium text-gray-900 tabular-nums">
+        <div className="flex items-center gap-1.5">
+          {basis !== 'none' && anomaly.exposureUsd !== null && (
+            <span className="text-sm font-medium text-gray-900 tabular-nums">
               {formatRevenueAtRisk(anomaly.exposureUsd)}
-            </div>
-            <div className="text-[11px] text-gray-400">{exposureBasisLabel[anomaly.exposureBasis]}</div>
-          </>
-        )}
+            </span>
+          )}
+          <ExposureBasisSelect exposureBasis={anomaly.exposureBasis} value={basis} onChange={setBasis} />
+        </div>
       </td>
       <td className="px-4 py-3 text-xs text-gray-500">
         {anomaly.breakDate || '—'}
