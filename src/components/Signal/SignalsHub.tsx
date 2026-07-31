@@ -90,6 +90,12 @@ function FeedRow({
             <span className="text-xs font-semibold text-red-600 tabular-nums whitespace-nowrap">▲ {delta}</span>
           )}
         </div>
+        {anomaly.attribution && anomaly.attribution.length > 0 && (
+          <div className="text-xs text-gray-400 mt-0.5 truncate max-w-[160px]">
+            {anomaly.attribution[0].subFactor}{' '}
+            <span className="tabular-nums">+{anomaly.attribution[0].contribution}</span>
+          </div>
+        )}
       </td>
       <td className="px-4 py-3">
         <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${IMPACT_PILL[anomaly.impactBucket]}`}>

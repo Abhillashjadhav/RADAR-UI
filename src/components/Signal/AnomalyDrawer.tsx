@@ -91,7 +91,7 @@ function LensContext({ dim }: { dim: AnalysisDimension }) {
       <div className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 flex items-start gap-2 text-xs text-amber-800">
         <Hourglass size={14} className="flex-shrink-0 mt-0.5" />
         <span>
-          <strong>Baseline building ({det.daysOfHistory}/{BASELINE_DAYS} days)</strong> — anomaly
+          <strong>Baseline forming ({det.daysOfHistory}/{BASELINE_DAYS} days)</strong> — anomaly
           detection needs {BASELINE_DAYS} days of stored runs for this lens before it can fire.
           Lens reading {det.latest} is the current state, not an anomaly.
         </span>
@@ -323,7 +323,7 @@ export default function AnomalyDrawer({ anomaly, onClose, onAcknowledge }: Props
                       )}
                       {dDet.status === 'building' && (
                         <span className="inline-flex px-1 py-0.5 rounded text-[10px] font-semibold bg-gray-100 text-gray-500">
-                          Building {dDet.daysOfHistory}/{BASELINE_DAYS}
+                          Forming {dDet.daysOfHistory}/{BASELINE_DAYS}
                         </span>
                       )}
                       {dDet.status === 'stable' && (
