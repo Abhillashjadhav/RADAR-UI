@@ -1,5 +1,6 @@
 import type { ImpactBucket, RiskLens, Severity } from '../../types/signal';
 import type { RiskLenses } from '../../types';
+import type { RevenueBasis } from '../../types/analysis';
 
 // Severity → tokens that match the existing AlertCard / RiskLensChart palette.
 // Keeping these as plain strings (not a styled component) so consumers stay
@@ -85,6 +86,15 @@ export const lensHumanLabel: Record<RiskLens, string> = {
   labor_social: 'Labor & Social',
   market_competition: 'Market Competition',
   digital_transformation: 'Digital Transformation',
+};
+
+// Dollar-figure basis label — shown next to the amount wherever it renders
+// (Anomaly Feed row, Ranked Exceptions row, drawer footer) so the basis is
+// never ambiguous. 'none' is never rendered — callers gate on exposureUsd !== null.
+export const exposureBasisLabel: Record<RevenueBasis, string> = {
+  revenue: 'Revenue at Risk',
+  cost: 'Cost Exposure (modeled)',
+  none: '',
 };
 
 export const formatRevenueAtRisk = (usd: number): string => {

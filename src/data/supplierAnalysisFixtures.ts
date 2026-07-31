@@ -5,8 +5,13 @@
 //   no events = 50.0 + has_event_data=false (renders "No data", never ranks).
 // Swap this file for a backend export and numbers change, not code.
 // ---------------------------------------------------------------------------
-import type { AnalysisEvent, AnalysisDimension, SupplierAnalysis, ParameterChange } from '../types/analysis';
+import type { AnalysisEvent, AnalysisDimension, SupplierAnalysis, ParameterChange, RevenueBasis } from '../types/analysis';
 import { lensScore, overallScore, riskLevelOf, topMeasuredDimension } from './scoring';
+
+// Revenue defaults to disclosed-by-customer ('revenue'). Pass an object to
+// mark a supplier as cost-only (BOM, modeled) or as having no dollar figure
+// at all — never a different number, just a different basis on the same field.
+type RevenueInput = number | { amount: number; basis: Exclude<RevenueBasis, 'revenue'> };
 
 export const REF_DATE = '2026-07-02'; // "today" for history/break windows
 
@@ -102,10 +107,12 @@ function buildDimensions(
 }
 
 function buildAnalysis(
-  id: string, supplierName: string, location: string, revenueImpact: number,
+  id: string, supplierName: string, location: string, revenue: RevenueInput,
   eventsByLens: Record<string, AnalysisEvent[]>,
   paramsByLens: Record<string, ParameterChange[]> = {},
 ): SupplierAnalysis {
+  const revenueImpact = typeof revenue === 'number' ? revenue : revenue.amount;
+  const revenueBasis: RevenueBasis = typeof revenue === 'number' ? 'revenue' : revenue.basis;
   const dimensions = buildDimensions(eventsByLens, paramsByLens);
   const overall = overallScore(dimensions);
   const a: SupplierAnalysis = {
@@ -113,7 +120,7 @@ function buildAnalysis(
     overallScore: overall,
     riskLevel: riskLevelOf(overall),
     topRisk: '—', topRiskAbbr: '—',
-    revenueImpact, dimensions,
+    revenueImpact, revenueBasis, dimensions,
   };
   const top = topMeasuredDimension(a);
   if (top) { a.topRisk = top.label; a.topRiskAbbr = top.abbr; }
@@ -316,7 +323,7 @@ const PANASONIC = buildAnalysis('SUPA-007', 'PANASONIC', 'Osaka, Japan', 17_300,
 });
 
 // KOA — labor break, PROVISIONAL baseline (single older event).
-const KOA = buildAnalysis('SUPA-008', 'KOA', 'Nagano, Japan', 12_000, {
+const KOA = buildAnalysis('SUPA-008', 'KOA', 'Nagano, Japan', { amount: 12_000, basis: 'cost' }, {
   labor_social: [
     ev('2026-06-01', 'workforce availability', -0.20, 'Seasonal hiring gap at Nagano resistor plant', 'https://www.asahi.com/koa-hiring-2026', 30, 60, 0.1),
     ev('2026-06-25', 'workforce availability', -0.70, 'Overtime cap ruling cuts line-3 capacity 15%', 'https://www.asahi.com/overtime-2026', 14, 60, 0.55),
@@ -324,7 +331,7 @@ const KOA = buildAnalysis('SUPA-008', 'KOA', 'Nagano, Japan', 12_000, {
 });
 
 // SAMSUNG — tech/cyber break driven by TWO sub-factors.
-const SAMSUNG = buildAnalysis('SUPA-009', 'SAMSUNG', 'Suwon, South Korea', 9_500, {
+const SAMSUNG = buildAnalysis('SUPA-009', 'SAMSUNG', 'Suwon, South Korea', { amount: 9_500, basis: 'cost' }, {
   tech_cyber: [
     ev('2026-05-02', 'patch posture', -0.15, 'Quarterly OT patch audit passes with notes', 'https://www.samsungsem.com/security-2026', 0, 0, 0.06),
     ev('2026-05-20', 'patch posture', -0.20, 'Legacy MES segment flagged for slow patch cadence', 'https://www.samsungsem.com/mes-2026', 30, 60, 0.1),
@@ -335,7 +342,7 @@ const SAMSUNG = buildAnalysis('SUPA-009', 'SAMSUNG', 'Suwon, South Korea', 9_500
 });
 
 // YAGEO — market/competition break (allocation pricing).
-const YAGEO = buildAnalysis('SUPA-010', 'YAGEO', 'New Taipei, Taiwan', 7_800, {
+const YAGEO = buildAnalysis('SUPA-010', 'YAGEO', 'New Taipei, Taiwan', { amount: 7_800, basis: 'none' }, {
   market_competition: [
     ev('2026-05-01', 'capacity pricing', -0.20, 'MLCC pricing steady on soft demand', 'https://www.digitimes.com/mlcc-2026', 30, 60, 0.08),
     ev('2026-05-25', 'capacity pricing', -0.25, 'Passive-component book-to-bill ticks above 1', 'https://www.digitimes.com/btb-2026', 30, 60, 0.1),

@@ -2,7 +2,7 @@ import { useState, useMemo } from 'react';
 import { Download, ChevronUp, ChevronDown } from 'lucide-react';
 import type { Anomaly } from '../../data/anomalyMockData';
 import { anomalyStrength } from '../../data/anomalyMockData';
-import { formatRevenueAtRisk } from './signalUi';
+import { formatRevenueAtRisk, exposureBasisLabel } from './signalUi';
 
 interface Props {
   anomalies: Anomaly[];
@@ -29,17 +29,17 @@ export default function RankedExceptionFeed({ anomalies, onSelect }: Props) {
     if (impactFilter !== 'all') list = list.filter(a => a.impactBucket === impactFilter);
     if (tierFilter !== 'all') list = list.filter(a => a.tier === Number(tierFilter));
 
-    // Insufficient-data anomalies (no priced cost exposure) can't be ranked by
+    // Insufficient-data anomalies (no exposure figure at all) can't be ranked by
     // exposure — keep them, but always sort them below the priced/ranked ones.
-    const priced = list.filter(a => a.costExposureUsd !== null);
-    const unpriced = list.filter(a => a.costExposureUsd === null);
+    const priced = list.filter(a => a.exposureUsd !== null);
+    const unpriced = list.filter(a => a.exposureUsd === null);
 
     priced.sort((a, b) => {
       let cmp = 0;
       if (sortKey === 'strength') cmp = (anomalyStrength(a) ?? 0) - (anomalyStrength(b) ?? 0);
       else if (sortKey === 'score') cmp = a.scoreAfter - b.scoreAfter;
       else if (sortKey === 'delta') cmp = (a.scoreAfter - a.scoreBaseline) - (b.scoreAfter - b.scoreBaseline);
-      else if (sortKey === 'exposure') cmp = (a.costExposureUsd ?? 0) - (b.costExposureUsd ?? 0);
+      else if (sortKey === 'exposure') cmp = (a.exposureUsd ?? 0) - (b.exposureUsd ?? 0);
       else if (sortKey === 'tier') cmp = a.tier - b.tier;
       return sortDir === 'asc' ? cmp : -cmp;
     });
@@ -57,7 +57,7 @@ export default function RankedExceptionFeed({ anomalies, onSelect }: Props) {
       : <ChevronDown size={12} className="inline opacity-20" />;
 
   const exportCSV = () => {
-    const header = ['Rank', 'Supplier', 'Tier', 'Lens', 'Impact', 'Score', 'Delta', 'Cost Exposure ($)', 'Strength', 'Break Date', 'Verified', 'Status'];
+    const header = ['Rank', 'Supplier', 'Tier', 'Lens', 'Impact', 'Score', 'Delta', 'Exposure ($)', 'Basis', 'Strength', 'Break Date', 'Verified', 'Status'];
     const data = rows.map((a, i) => {
       const st = anomalyStrength(a);
       return [
@@ -68,7 +68,8 @@ export default function RankedExceptionFeed({ anomalies, onSelect }: Props) {
         a.impactBucket,
         a.scoreAfter,
         Math.round((a.scoreAfter - a.scoreBaseline) * 10) / 10,
-        a.costExposureUsd ?? 'insufficient data',
+        a.exposureUsd ?? 'insufficient data',
+        a.exposureUsd !== null ? a.exposureBasis : '',
         st === null ? 'n/a' : Math.round(st),
         a.breakDate,
         a.verified ? 'Yes' : 'No',
@@ -88,7 +89,7 @@ export default function RankedExceptionFeed({ anomalies, onSelect }: Props) {
       <div className="flex items-center justify-between px-5 py-3 border-b border-gray-100">
         <div>
           <h3 className="text-sm font-semibold text-gray-900">Ranked Exception Feed</h3>
-          <p className="text-xs text-gray-400">Ranked by anomaly strength × annual cost exposure · insufficient-data suppliers sorted last</p>
+          <p className="text-xs text-gray-400">Ranked by anomaly strength × annual exposure · insufficient-data suppliers sorted last</p>
         </div>
         <button
           onClick={exportCSV}
@@ -143,7 +144,7 @@ export default function RankedExceptionFeed({ anomalies, onSelect }: Props) {
               <th
                 className="px-4 py-2.5 text-left text-xs font-semibold text-gray-500 cursor-pointer hover:text-gray-800 select-none"
                 onClick={() => toggleSort('exposure')}
-              >Cost Exposure <SortIcon k="exposure" /></th>
+              >Exposure <SortIcon k="exposure" /></th>
               <th
                 className="px-4 py-2.5 text-left text-xs font-semibold text-gray-500 cursor-pointer hover:text-gray-800 select-none"
                 onClick={() => toggleSort('strength')}
@@ -188,10 +189,15 @@ export default function RankedExceptionFeed({ anomalies, onSelect }: Props) {
                       </div>
                     )}
                   </td>
-                  <td className="px-4 py-2.5 text-sm font-medium text-gray-900 tabular-nums">
-                    {a.costExposureUsd !== null
-                      ? formatRevenueAtRisk(a.costExposureUsd)
-                      : <span className="text-xs italic text-gray-400">exposure n/a</span>}
+                  <td className="px-4 py-2.5">
+                    {a.exposureUsd !== null && (
+                      <>
+                        <div className="text-sm font-medium text-gray-900 tabular-nums">
+                          {formatRevenueAtRisk(a.exposureUsd)}
+                        </div>
+                        <div className="text-[11px] text-gray-400">{exposureBasisLabel[a.exposureBasis]}</div>
+                      </>
+                    )}
                   </td>
                   <td className="px-4 py-2.5">
                     {strength === null ? (

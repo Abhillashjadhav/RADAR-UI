@@ -2,7 +2,7 @@ import { useMemo, useState } from 'react';
 import { X, ExternalLink, AlertTriangle, CheckCircle, Hourglass } from 'lucide-react';
 import type { Anomaly } from '../../data/anomalyMockData';
 import type { AnalysisDimension, ParameterChange } from '../../types/analysis';
-import { formatRevenueAtRisk } from './signalUi';
+import { formatRevenueAtRisk, exposureBasisLabel } from './signalUi';
 // AnomalyTrendChart intentionally NOT mounted here anymore — the lens
 // baseline-vs-breakout chart lives on the lens/anomaly detail surfaces.
 import ScoreBreakdown from './ScoreBreakdown';
@@ -215,7 +215,7 @@ export default function AnomalyDrawer({ anomaly, onClose, onAcknowledge }: Props
           {selectedDim && <ParameterDetails dim={selectedDim} lensDelta={lensDelta} />}
 
           {/* Key metrics — the reading is the STATE; the badge is the anomaly */}
-          <div className="grid grid-cols-3 gap-3">
+          <div className={`grid gap-3 ${anomaly.exposureUsd !== null ? 'grid-cols-3' : 'grid-cols-2'}`}>
             <div className="bg-white border border-gray-100 rounded-xl p-3">
               <p className="text-xs text-gray-500 mb-1">Lens Reading</p>
               <p className="text-xl font-bold text-gray-900 tabular-nums">{anomaly.scoreAfter}</p>
@@ -227,14 +227,14 @@ export default function AnomalyDrawer({ anomaly, onClose, onAcknowledge }: Props
                 </span>
               )}
             </div>
-            <div className="bg-white border border-gray-100 rounded-xl p-3">
-              <p className="text-xs text-gray-500 mb-1">Cost Exposure</p>
-              <p className="text-xl font-bold text-amber-600 tabular-nums">
-                {anomaly.costExposureUsd !== null
-                  ? formatRevenueAtRisk(anomaly.costExposureUsd)
-                  : <span className="text-sm italic text-gray-400">n/a</span>}
-              </p>
-            </div>
+            {anomaly.exposureUsd !== null && (
+              <div className="bg-white border border-gray-100 rounded-xl p-3">
+                <p className="text-xs text-gray-500 mb-1">{exposureBasisLabel[anomaly.exposureBasis]}</p>
+                <p className="text-xl font-bold text-amber-600 tabular-nums">
+                  {formatRevenueAtRisk(anomaly.exposureUsd)}
+                </p>
+              </div>
+            )}
             <div className="bg-white border border-gray-100 rounded-xl p-3">
               <p className="text-xs text-gray-500 mb-1">Break Date</p>
               <p className="text-base font-bold text-gray-900">

@@ -32,8 +32,10 @@ export interface Anomaly {
   lens: RiskLens;
   lensLabel: string;
   impactBucket: ImpactBucket;
-  revenueAtRiskUsd: number;
-  costExposureUsd: number | null;  // annual cost exposure (col O). null = insufficient data → ranked below priced anomalies
+  /** Dollar exposure figure. null = no revenue AND no cost data — never $0/dash/N/A, the figure is simply absent. */
+  exposureUsd: number | null;
+  /** What exposureUsd means: customer-disclosed revenue, modeled cost (BOM), or none. */
+  exposureBasis: import('../types/analysis').RevenueBasis;
 
   scoreBaseline: number;    // score before breakout
   scoreAfter: number;       // displayed score (post-breakout)
@@ -123,8 +125,8 @@ export const ANOMALIES: Anomaly[] = [
     lens: 'geopolitical',
     lensLabel: 'Geopolitical',
     impactBucket: 'delivery',
-    revenueAtRiskUsd: 25_000_000,
-    costExposureUsd: 25_000_000,
+    exposureUsd: 25_000_000,
+    exposureBasis: 'revenue',
     scoreBaseline: 58,
     scoreAfter: 72,
     breakDate: isoDate(8),
@@ -157,8 +159,8 @@ export const ANOMALIES: Anomaly[] = [
     lens: 'esg_regulatory',
     lensLabel: 'ESG / Regulatory',
     impactBucket: 'compliance',
-    revenueAtRiskUsd: 15_000_000,
-    costExposureUsd: 15_000_000,
+    exposureUsd: 15_000_000,
+    exposureBasis: 'revenue',
     scoreBaseline: 64,
     scoreAfter: 82,
     breakDate: isoDate(5),
@@ -191,8 +193,8 @@ export const ANOMALIES: Anomaly[] = [
     lens: 'environmental_climate',
     lensLabel: 'Environmental / Climate',
     impactBucket: 'delivery',
-    revenueAtRiskUsd: 10_000_000,
-    costExposureUsd: 10_000_000,
+    exposureUsd: 10_000_000,
+    exposureBasis: 'revenue',
     scoreBaseline: 61,
     scoreAfter: 76,
     breakDate: isoDate(14),
@@ -234,8 +236,8 @@ export const ANOMALIES: Anomaly[] = [
     lens: 'geopolitical',
     lensLabel: 'Geopolitical',
     impactBucket: 'cost',
-    revenueAtRiskUsd: 2_500_000,
-    costExposureUsd: 2_500_000,
+    exposureUsd: 2_500_000,
+    exposureBasis: 'revenue',
     scoreBaseline: 54,
     scoreAfter: 68,
     breakDate: isoDate(6),
@@ -267,8 +269,8 @@ export const ANOMALIES: Anomaly[] = [
     lens: 'logistics_transport',
     lensLabel: 'Logistics & Transport',
     impactBucket: 'delivery',
-    revenueAtRiskUsd: 2_000_000,
-    costExposureUsd: null,
+    exposureUsd: null,
+    exposureBasis: 'none',
     scoreBaseline: 58,
     scoreAfter: 74,
     breakDate: isoDate(11),
@@ -300,8 +302,8 @@ export const ANOMALIES: Anomaly[] = [
     lens: 'labor_social',
     lensLabel: 'Labor & Social',
     impactBucket: 'compliance',
-    revenueAtRiskUsd: 8_000_000,
-    costExposureUsd: 8_000_000,
+    exposureUsd: 8_000_000,
+    exposureBasis: 'revenue',
     scoreBaseline: 60,
     scoreAfter: 71,
     breakDate: isoDate(22),
@@ -334,8 +336,8 @@ export const ANOMALIES: Anomaly[] = [
     lens: 'economic_financial',
     lensLabel: 'Economic / Financial',
     impactBucket: 'cost',
-    revenueAtRiskUsd: 3_000_000,
-    costExposureUsd: 3_000_000,
+    exposureUsd: 3_000_000,
+    exposureBasis: 'revenue',
     scoreBaseline: 28,
     scoreAfter: 28,
     breakDate: '',
@@ -362,7 +364,7 @@ export const ANOMALIES: Anomaly[] = [
 // Returns null when the supplier has no priced cost exposure (insufficient data) —
 // such anomalies are still shown but cannot be ranked, so they sort below priced ones.
 export function anomalyStrength(a: Anomaly): number | null {
-  if (a.costExposureUsd === null) return null;
+  if (a.exposureUsd === null) return null;
   const delta = a.scoreAfter - a.scoreBaseline;
-  return delta * (a.costExposureUsd / 1_000_000);
+  return delta * (a.exposureUsd / 1_000_000);
 }

@@ -87,10 +87,12 @@ export default function AlertFeed() {
               <p className="text-sm font-semibold text-gray-900 leading-snug">{a.supplierName}</p>
               <p className="text-xs text-gray-500 mb-1.5">
                 {a.lensLabel} · {a.scoreBaseline} → <span className="font-semibold text-red-600">{a.scoreAfter}</span>
-                <span className="text-gray-300"> · </span>
-                <span className="font-bold text-gray-700">
-                  {a.costExposureUsd !== null ? formatRevenueAtRisk(a.costExposureUsd) : 'exposure n/a'}
-                </span>
+                {a.exposureUsd !== null && (
+                  <>
+                    <span className="text-gray-300"> · </span>
+                    <span className="font-bold text-gray-700">{formatRevenueAtRisk(a.exposureUsd)}</span>
+                  </>
+                )}
               </p>
               <button
                 onClick={() => openAlert(a.id)}

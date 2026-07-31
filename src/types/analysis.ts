@@ -50,6 +50,13 @@ export interface AnalysisDimension {
   parameter_changes?: ParameterChange[];
 }
 
+/**
+ * Dollar-figure basis. Revenue can only come from the customer directly; if
+ * they instead upload a BOM with cost data but no revenue, the figure is
+ * cost-based (modeled). If neither exists, there is no dollar figure at all.
+ */
+export type RevenueBasis = 'revenue' | 'cost' | 'none';
+
 export interface SupplierAnalysis {
   id: string;
   runId: string;
@@ -59,7 +66,8 @@ export interface SupplierAnalysis {
   riskLevel: 'critical' | 'medium' | 'low';
   topRisk: string;           // label of highest measured lens
   topRiskAbbr: string;
-  revenueImpact: number;     // USD exposure
+  revenueImpact: number;     // USD exposure figure (interpreted per revenueBasis)
+  revenueBasis: RevenueBasis;
   dimensions: AnalysisDimension[];  // 12 lenses
 }
 

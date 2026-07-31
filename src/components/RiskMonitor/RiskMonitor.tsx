@@ -78,7 +78,7 @@ export default function RiskMonitor() {
     for (const an of ANOMALIES) {
       const key = (an.impactBucket.charAt(0).toUpperCase() + an.impactBucket.slice(1)) as keyof typeof buckets;
       buckets[key].n++;
-      buckets[key].rev += an.costExposureUsd ?? 0;
+      buckets[key].rev += an.exposureUsd ?? 0;
     }
     return buckets;
   }, []);

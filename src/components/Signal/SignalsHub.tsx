@@ -3,7 +3,7 @@ import { Link, useSearchParams } from 'react-router-dom';
 import { AlertTriangle, CheckCircle, BarChart2, MessageSquare, AlertOctagon, FileCheck, ArrowRight } from 'lucide-react';
 import { ANOMALIES } from '../../data/analysisAnomalies';
 import type { Anomaly } from '../../data/anomalyMockData';
-import { formatRevenueAtRisk, lensHumanLabel, severityTokens } from './signalUi';
+import { formatRevenueAtRisk, exposureBasisLabel, lensHumanLabel, severityTokens } from './signalUi';
 import { sampleSignal } from '../../data/sample-signal';
 import AnomalyDrawer from './AnomalyDrawer';
 import RankedExceptionFeed from './RankedExceptionFeed';
@@ -102,8 +102,15 @@ function FeedRow({
           {anomaly.impactBucket}
         </span>
       </td>
-      <td className="px-4 py-3 text-sm font-medium text-gray-900 tabular-nums">
-        {formatRevenueAtRisk(anomaly.revenueAtRiskUsd)}
+      <td className="px-4 py-3">
+        {anomaly.exposureUsd !== null && (
+          <>
+            <div className="text-sm font-medium text-gray-900 tabular-nums">
+              {formatRevenueAtRisk(anomaly.exposureUsd)}
+            </div>
+            <div className="text-[11px] text-gray-400">{exposureBasisLabel[anomaly.exposureBasis]}</div>
+          </>
+        )}
       </td>
       <td className="px-4 py-3 text-xs text-gray-500">
         {anomaly.breakDate || '—'}
@@ -317,7 +324,7 @@ export default function SignalsHub() {
                   <th className="px-4 py-2.5 text-left text-xs font-semibold text-gray-500">Risk Lens</th>
                   <th className="px-4 py-2.5 text-left text-xs font-semibold text-gray-500">Lens Reading</th>
                   <th className="px-4 py-2.5 text-left text-xs font-semibold text-gray-500">Impact</th>
-                  <th className="px-4 py-2.5 text-left text-xs font-semibold text-gray-500">Revenue at Risk</th>
+                  <th className="px-4 py-2.5 text-left text-xs font-semibold text-gray-500">Exposure</th>
                   <th className="px-4 py-2.5 text-left text-xs font-semibold text-gray-500">Break Date</th>
                   <th className="px-4 py-2.5 text-left text-xs font-semibold text-gray-500">Source</th>
                   <th className="px-4 py-2.5 text-left text-xs font-semibold text-gray-500">Status</th>

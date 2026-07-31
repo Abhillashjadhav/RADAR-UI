@@ -50,8 +50,8 @@ function toAnomaly(a: SupplierAnalysis, d: AnalysisDimension): Anomaly | null {
     lens: d.key as RiskLens,
     lensLabel: d.label,
     impactBucket: LENS_BUCKET[d.key] ?? 'delivery',
-    revenueAtRiskUsd: a.revenueImpact,
-    costExposureUsd: a.revenueImpact,
+    exposureUsd: a.revenueBasis === 'none' ? null : a.revenueImpact,
+    exposureBasis: a.revenueBasis,
     scoreBaseline: det.scoreBaseline,
     scoreAfter: det.latest,   // the score is the STATE; the badge is the anomaly
     breakDate,
